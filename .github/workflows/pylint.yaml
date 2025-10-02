@@ -8,6 +8,9 @@ on:
     paths:
       - '**/*.py'  # Trigger workflow only when Python files change
 
+permissions:
+  pull-requests: read
+
 jobs:
   lint:
     name: Lint Code
