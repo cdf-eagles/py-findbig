@@ -18,17 +18,17 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
       - name: Get changed Python files
         id: get_changed_files
-        uses: tj-actions/changed-files@v47
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62
         with:
           files: '**/*.py'
 
       - name: Run pylint
         if: steps.get_changed_files.outputs.any_changed == 'true'
-        uses: dciborow/action-pylint@0.1.1
+        uses: dciborow/action-pylint@cf6c9bcd79e4aa70e2fbeaf6332d741eb1e0bff8
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
