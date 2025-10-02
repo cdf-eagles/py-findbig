@@ -1,7 +1,10 @@
 name: Lint Python Code
 
 on:
+  push:
+    branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
     paths:
       - '**/*.py'  # Trigger workflow only when Python files change
 
