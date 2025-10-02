@@ -1,3 +1,5 @@
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Lint Python Code](https://github.com/cdf-eagles/py-findbig/actions/workflows/pylint.yaml/badge.svg)](https://github.com/cdf-eagles/py-findbig/actions/workflows/pylint.yaml)
 [![main](https://img.shields.io/badge/main-stable-green.svg?maxAge=2592000)]('')
 
 # Python Implementation of 'findbig'
