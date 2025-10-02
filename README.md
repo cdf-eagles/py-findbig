@@ -12,8 +12,8 @@ It has only been tested on macOS and FreeBSD, but it should work on on a variety
 The default number of lines to print is determined by your terminal size. A standard 80x24 terminal will output 19 lines of output.
 
 ```
-# ./py-findbig.py -h
-usage: py-findbig.py [-h] [-n NUMPRINT] [searchPath]
+# ./findbig.py -h
+usage: findbig.py [-h] [-n NUMPRINT] [searchPath]
 
 This script recursively finds the largest files/directories in the current
 working directory (default) or the specified directory.
@@ -26,12 +26,12 @@ options:
   -h, --help          show this help message and exit
   -n, --num NUMPRINT  The number of lines to display. (default: 19)
 
-Example: /Users/haides/Documents/src/personal/py-findbig/py-findbig.py -n 10 /tmp
+Example: /Users/haides/Documents/src/personal/findbig/findbig.py -n 10 /tmp
 ```
 
 ### Default use and output
 ```
-# ./py-findbig.py
+# ./findbig.py
  Directory/File  |   Created    |   Modified   |    Size
 -----------------|--------------|--------------|-----------
 ./               |  5.62 (min)  |  5.62 (min)  |     160.0M
@@ -55,7 +55,7 @@ Example: /Users/haides/Documents/src/personal/py-findbig/py-findbig.py -n 10 /tm
 
 ### Limit number of lines of output
 ```
-# ./py-findbig.py -n 4
+# ./findbig.py -n 4
  Directory/File  |   Created    |   Modified   |    Size
 -----------------|--------------|--------------|-----------
 ./               |  6.52 (min)  |  6.52 (min)  |     160.0M
@@ -66,7 +66,7 @@ Example: /Users/haides/Documents/src/personal/py-findbig/py-findbig.py -n 10 /tm
 
 ### Limit number of lines of output and specify directory to evaluate
 ```
-# ./py-findbig.py -n 4 ./a
+# ./findbig.py -n 4 ./a
  Directory/File  |   Created    |   Modified   |    Size
 -----------------|--------------|--------------|-----------
 ./a              |  6.16 (min)  |  6.16 (min)  |      94.0M
