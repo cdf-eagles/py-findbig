@@ -29,7 +29,7 @@ repos:
     hooks:
       - id: black
         language_version: python3.13
-        args: ["--line-length=79"]
+        args: ["--line-length=120"]
   - repo: https://github.com/pycqa/isort
     rev: 6.1.0
     hooks:
@@ -38,6 +38,19 @@ repos:
     rev: 7.3.0
     hooks:
       - id: flake8
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        require_serial: true
+        args:
+          [
+            "-rn", # only display messages
+            "--rcfile=.pylintrc", # project pylint configuration file
+          ]
 ```
 * Run pre-commit autoupdate to ensure latest revisions of repos are set up
   * `pre-commit autoupdate`
