@@ -1,6 +1,9 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Lint Python Code](https://github.com/cdf-eagles/py-findbig/actions/workflows/pylint.yaml/badge.svg)](https://github.com/cdf-eagles/py-findbig/actions/workflows/pylint.yaml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=cdf-eagles_py-findbig&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=cdf-eagles_py-findbig)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=cdf-eagles_py-findbig&metric=bugs)](https://sonarcloud.io/summary/new_code?id=cdf-eagles_py-findbig)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=cdf-eagles_py-findbig&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=cdf-eagles_py-findbig)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=cdf-eagles_py-findbig&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=cdf-eagles_py-findbig)
 [![main](https://img.shields.io/badge/main-stable-green.svg?maxAge=2592000)]('')
 
 # Python Implementation of 'findbig'
