@@ -42,5 +42,6 @@ repos:
         args:
           [
             "-rn", # only display messages
+            "-sn", # don't display the score
             "--rcfile=.pylintrc", # project pylint configuration file
           ]
