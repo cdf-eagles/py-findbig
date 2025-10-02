@@ -29,7 +29,7 @@ options:
   -h, --help          show this help message and exit
   -n, --num NUMPRINT  The number of lines to display. (default: 19)
 
-Example: /Users/haides/Documents/src/personal/findbig/findbig.py -n 10 /tmp
+Example: ./findbig.py -n 10 /tmp
 ```
 
 ### Default use and output
