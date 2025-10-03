@@ -95,9 +95,9 @@ def print_table(sorted_list):
     else:
         col1 = int(term_size.columns) - 44
 
-    # print header
+    # output header formatted for terminal size
     print(f"{header[0]:^{col1}} | {header[1]:^{col2}} |", end="")
-    print(f"{header[2]:^{col3}} | {header[3]:^{col4}}", end="\n")
+    print(f"{header[2]:^{col3}}  | {header[3]:^{col4}}", end="\n")
     print(f'{"-"*col1:^{col1}}-|-{"-"*col2:^{col2}}-|', end="")
     print(f'-{"-"*col3:^{col3}}-|-{"-"*col4:^{col4}}', end="\n")
 
@@ -108,17 +108,19 @@ def print_table(sorted_list):
         age_from_creation = calculate_age(os.path.getctime(fobj))
         age_from_modification = calculate_age(os.path.getmtime(fobj))
 
-        # print data; one line per object
-        print(f"{fobj[:col1]:<{col1}} |", end="")
-        print(f"{age_from_creation:^{col2}} |", end="")
-        print(f"{age_from_modification:^{col3}} |", end="")
+        # output data; one line per object formatted for terminal size
+        print(f"{fobj[:col1]:<{col1}} | ", end="")
+        print(f"{age_from_creation:<{col2}} | ", end="")
+        print(f"{age_from_modification:<{col3}} |", end="")
         print(f"{size_unit:>{col4}}", end="\n")
 
 
 def findbig(args_list, rows_to_print):
     """Walk the provided directory and find all the largest files"""
     dirs_dict = {}
-    for root, dirs, files in os.walk(args_list.search_path, topdown=False, followlinks=False):  # noqa: E501
+    for root, dirs, files in os.walk(
+        args_list.search_path, topdown=False, followlinks=False
+    ):
         if os.path.islink(root):
             dirs_dict[root] = 0
         else:
@@ -148,10 +150,14 @@ def findbig(args_list, rows_to_print):
 
         dirs_dict[root] = dir_size + subdir_size
 
-    sorted_dirs_dict = dict(sorted(dirs_dict.items(), reverse=True, key=lambda item: item[1]))  # noqa: E501
-    top_dirs = take(rows_to_print, sorted_dirs_dict.items())
-
-    print_table(convert_to_human_readable(top_dirs))
+    sorted_dirs_dict = dict(
+        sorted(dirs_dict.items(), reverse=True, key=lambda item: item[1])
+    )
+    print_table(
+        convert_to_human_readable(
+            take(rows_to_print, sorted_dirs_dict.items())
+        )
+    )
 
 
 if __name__ == "__main__":
