@@ -153,7 +153,11 @@ def findbig(args_list, rows_to_print):
     sorted_dirs_dict = dict(
         sorted(dirs_dict.items(), reverse=True, key=lambda item: item[1])
     )
-    print_table(take(rows_to_print, sorted_dirs_dict.items()))
+    print_table(
+        convert_to_human_readable(
+            take(rows_to_print, sorted_dirs_dict.items())
+        )
+    )
 
 
 if __name__ == "__main__":
