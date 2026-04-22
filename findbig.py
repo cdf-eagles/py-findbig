@@ -160,7 +160,8 @@ def findbig(args_list, rows_to_print):
     )
 
 
-if __name__ == "__main__":
+def main():
+    """main function execution"""
     terminal_size = shutil.get_terminal_size()
 
     parser = argparse.ArgumentParser(
@@ -196,24 +197,28 @@ if __name__ == "__main__":
     except argparse.ArgumentError as e:
         print(f"An error occured: {e}")
 
-    LINES_TO_PRINT = ""
+    __lines_to_print__ = ""
     if args.lines_to_print is not None:
         if isinstance(args.lines_to_print, int):
-            LINES_TO_PRINT = args.lines_to_print
+            __lines_to_print__ = args.lines_to_print
         else:
-            LINES_TO_PRINT = int("".join(map(str, args.lines_to_print)))
+            __lines_to_print__ = int("".join(map(str, args.lines_to_print)))
 
-    if LINES_TO_PRINT <= 0:
+    if __lines_to_print__ <= 0:
         raise argparse.ArgumentError(
-            LINES_TO_PRINT,
+            __lines_to_print__,
             f"Lines to print must be a value greater than 0: \
-              {LINES_TO_PRINT} is not valid",
+              {__lines_to_print__} is not valid",
         )
 
     try:
-        findbig(args, LINES_TO_PRINT)
+        findbig(args, __lines_to_print__)
     except argparse.ArgumentError as e:
         print(f"An error occured: {e}")
         sys.exit(1)
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
