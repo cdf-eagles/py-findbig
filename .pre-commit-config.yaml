@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.34.0
+    rev: 0.37.1
     hooks:
       - id: check-github-workflows
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -18,13 +18,13 @@ repos:
     hooks:
       - id: ripsecrets
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 25.9.0
+    rev: 26.3.1
     hooks:
       - id: black
         language_version: python3.13
         args: ["--line-length=79"]
   - repo: https://github.com/pycqa/isort
-    rev: 6.1.0
+    rev: 9.0.0a3
     hooks:
       - id: isort
   - repo: https://github.com/pycqa/flake8
