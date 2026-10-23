@@ -1,5 +1,5 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![Lint Python Code](https://github.com/cdf-eagles/py-findbig/actions/workflows/pylint.yaml/badge.svg)](https://github.com/cdf-eagles/py-findbig/actions/workflows/pylint.yaml)
+[![CI](https://github.com/cdf-eagles/py-findbig/actions/workflows/ci.yaml/badge.svg)](https://github.com/cdf-eagles/py-findbig/actions/workflows/ci.yaml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=cdf-eagles_py-findbig&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=cdf-eagles_py-findbig)
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=cdf-eagles_py-findbig&metric=bugs)](https://sonarcloud.io/summary/new_code?id=cdf-eagles_py-findbig)
 [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=cdf-eagles_py-findbig&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=cdf-eagles_py-findbig)
@@ -80,3 +80,17 @@ Example: ./findbig.py -n 10 /tmp
 ./a/1/file1      |  5.54 (min)  |  5.54 (min)  |      52.0M
 ./a/1/z          |  5.23 (min)  |  5.23 (min)  |      32.0M
 ```
+
+## Development and CI
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) to set up the checks locally.
+
+The `CI` workflow (`.github/workflows/ci.yaml`) runs on every pull request to `main`, every push to `main`, and weekly. It has these jobs:
+
+* `Lint` runs yamllint, then every pre-commit hook over all files: black, isort, flake8, pylint, actionlint, the GitHub workflow and Dependabot schema checks, and the private-key checks.
+* `Secret scan` runs gitleaks over the full git history.
+* `Tool drift` runs weekly and opens an issue when a pinned tool has a newer release.
+
+There are no automated tests in this repository.
+
+Tool versions live in one place each: Python tools in `ci/requirements.txt`, pre-commit hooks in `.pre-commit-config.yaml`, and the gitleaks release in the workflow `env:` block with its SHA-256 checksum. Dependabot updates all of them.
