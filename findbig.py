@@ -19,7 +19,6 @@ import shutil
 import sys
 from itertools import islice
 from os.path import getsize, join
-from pathlib import Path
 
 
 def take(n, iterable):
@@ -83,6 +82,22 @@ def calculate_age(timestamp):
     return calculate_time(current_time - date)
 
 
+def size_of(path):
+    """Return the size of path in bytes, or 0 if it can no longer be read"""
+    try:
+        return getsize(path)
+    except OSError:
+        return 0
+
+
+def age_of(path, field):
+    """Return the age of path from its own lstat field, or "-" if unreadable"""
+    try:
+        return calculate_age(getattr(os.lstat(path), field))
+    except OSError:
+        return "-"
+
+
 def print_table(sorted_list):
     """Print the results in a human readable table"""
     term_size = shutil.get_terminal_size()
@@ -105,8 +120,8 @@ def print_table(sorted_list):
         size_unit = str(size) + str(unit)
 
         # calculate age of filesystem objects in the output list
-        age_from_creation = calculate_age(os.path.getctime(fobj))
-        age_from_modification = calculate_age(os.path.getmtime(fobj))
+        age_from_creation = age_of(fobj, "st_ctime")
+        age_from_modification = age_of(fobj, "st_mtime")
 
         # output data; one line per object formatted for terminal size
         print(f"{fobj[:col1]:<{col1}} | ", end="")
@@ -121,20 +136,16 @@ def findbig(args_list, rows_to_print):
     for root, dirs, files in os.walk(
         args_list.search_path, topdown=False, followlinks=False
     ):
-        if os.path.islink(root):
-            dirs_dict[root] = 0
-        else:
-            dir_size = getsize(root)
+        dir_size = 0
+        if not os.path.islink(root):
+            dir_size = size_of(root)
 
-        file_size = 0
         for name in files:
             full_path = join(root, name)
             if os.path.islink(full_path):
                 file_size = 0
             else:
-                obj = Path(full_path)
-                if obj.exists():
-                    file_size = getsize(full_path)
+                file_size = size_of(full_path)
             dirs_dict[full_path] = file_size
             dir_size += file_size
 
@@ -144,9 +155,7 @@ def findbig(args_list, rows_to_print):
             if os.path.islink(full_path):
                 dirs_dict[full_path] = 0
             else:
-                obj = Path(full_path)
-                if obj.exists():
-                    subdir_size += dirs_dict[full_path]
+                subdir_size += dirs_dict.get(full_path, 0)
 
         dirs_dict[root] = dir_size + subdir_size
 

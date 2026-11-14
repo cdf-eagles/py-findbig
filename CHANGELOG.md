@@ -4,6 +4,9 @@
   - This changelog starts, filled in from the repository's history. Found internally from backlog item 566.
   - A search path that does not exist or is not a directory now stops with a usage error instead of a traceback from an empty result list. Found internally from backlog item 567.
   - Dependabot raised the weekly Tool drift job's reusable workflow from v1.0.0 to v1.1.0.
+  - A file or directory that vanishes during the walk, or a subdirectory that cannot be read, no longer stops the script with a `KeyError` or `FileNotFoundError`: such entries count as 0 bytes, and an age that cannot be read shows as `-`. Fixes issue #14; found internally from backlog item 568.
+  - A file that vanishes no longer takes the size of the file listed before it, and a search path that is a symbolic link to a directory no longer fails with an `UnboundLocalError`.
+  - A symbolic link whose target is gone no longer stops the script with a `FileNotFoundError`: ages are read from the entry itself (`os.lstat`), so a link shows its own age, as it already counted as 0 bytes instead of its target's size.
 
 - 2026-11-12
   - Removed the SonarCloud analysis workflow, which was disabled in GitHub Actions and had never run; SonarCloud's Automatic Analysis already scans every push and pull request. Found internally from backlog item 353.
