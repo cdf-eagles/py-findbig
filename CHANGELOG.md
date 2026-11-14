@@ -14,6 +14,8 @@
   - The table's columns line up, and a short path no longer widens the name column to the terminal's width.
   - The README's help text and examples match the script, and it explains what the sizes and ages mean and how to install the script; the header comment keeps only the project link and the credit to the Perl script.
   - Tagged `v0.3.0` with these changes.
+  - A `--csv` option, off by default, writes comma-separated values instead of the table: the full path, the size in whole bytes, and the creation (or change) and modification times as UTC timestamps, with a header row. From backlog item 571.
+  - `-V` (`--version`) prints the release version, `v0.4.0`, which `--help` shows too; `CONTRIBUTING.md` says to raise it before each release is tagged.
 
 - 2026-11-12
   - Removed the SonarCloud analysis workflow, which was disabled in GitHub Actions and had never run; SonarCloud's Automatic Analysis already scans every push and pull request. Found internally from backlog item 353.
