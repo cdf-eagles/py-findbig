@@ -52,6 +52,7 @@ for b in $branches; do
 		major/*) bump="major" ;;
 		feat/*) [ "$bump" = major ] || bump="minor" ;;
 		fix/*) if [ "$bump" = none ]; then bump="patch"; fi ;;
+		*) ;; # build/, ignore/, dependabot/, and other branches do not bump
 	esac
 done
 
@@ -69,6 +70,10 @@ case "$bump" in
 	major) major=$((major + 1)); minor=0; patch=0 ;;
 	minor) minor=$((minor + 1)); patch=0 ;;
 	patch) patch=$((patch + 1)) ;;
+	*)
+		echo "next-version: unknown bump ${bump}" >&2
+		exit 2
+		;;
 esac
 next="v${major}.${minor}.${patch}"
 

@@ -33,6 +33,7 @@ case "$version" in
 		echo "check-release-version: unsupported tag ${tag}" >&2
 		exit 2
 		;;
+	*) ;;
 esac
 
 found=$(sed -n 's/^__version__ = "\([^"]*\)"$/\1/p' "$file" 2> /dev/null || true)

@@ -47,7 +47,7 @@ jobs:
           case "$TAG" in
             v[0-9]*.[0-9]*.[0-9]*-rc.[0-9]*)
               version=${TAG#v}; version=${version%-rc.*}
-              case "$version" in *[!0-9.]*) echo "::error::unsupported tag $TAG"; exit 1 ;; esac
+              case "$version" in *[!0-9.]*) echo "::error::unsupported tag $TAG"; exit 1 ;; *) ;; esac
               if ! git merge-base --is-ancestor "$sha" origin/main; then
                 echo "::error::$TAG is not on main"; exit 1
               fi
@@ -55,7 +55,7 @@ jobs:
               ;;
             v[0-9]*.[0-9]*.[0-9]*)
               version=${TAG#v}
-              case "$version" in *[!0-9.]*) echo "::error::unsupported tag $TAG"; exit 1 ;; esac
+              case "$version" in *[!0-9.]*) echo "::error::unsupported tag $TAG"; exit 1 ;; *) ;; esac
               if ! git merge-base --is-ancestor "$sha" origin/main; then
                 echo "::error::$TAG is not on main"; exit 1
               fi
