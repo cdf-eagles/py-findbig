@@ -5,8 +5,9 @@ import contextlib
 import io
 import os
 import shutil
-import sys
 import tempfile
+import time
+import types
 import unittest
 from unittest import mock
 
@@ -21,8 +22,22 @@ def run_findbig(path, rows=10):
     with mock.patch.object(
         shutil, "get_terminal_size", return_value=WIDE_TERMINAL
     ), contextlib.redirect_stdout(out):
-        findbig.findbig(argparse.Namespace(search_path=path), rows)
+        findbig.findbig(path, rows)
     return out.getvalue()
+
+
+def run_main(argv):
+    """Run main() with argv; return its exit code, stdout, and stderr."""
+    out, err = io.StringIO(), io.StringIO()
+    code = 0
+    with mock.patch.object(
+        shutil, "get_terminal_size", return_value=WIDE_TERMINAL
+    ), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        try:
+            findbig.main(argv)
+        except SystemExit as raised:
+            code = raised.code
+    return code, out.getvalue(), err.getvalue()
 
 
 def line_for(output, path):
@@ -33,35 +48,52 @@ def line_for(output, path):
     raise AssertionError(f"no line for {path} in:\n{output}")
 
 
-class TestConversions(unittest.TestCase):
+def table_paths(output):
+    """Return the paths of a table's rows, in order."""
+    return [line.split(" | ")[0].rstrip() for line in output.splitlines()[2:]]
+
+
+def write_file(path, size):
+    """Create a file of size bytes."""
+    with open(path, "wb") as handle:
+        handle.write(b"\0" * size)
+
+
+class TestFormatting(unittest.TestCase):
     """Size and age formatting."""
 
     def test_human_readable_units(self):
-        """Sizes use bytes, then kilobytes and megabytes."""
-        converted = findbig.convert_to_human_readable(
-            [("a", 512), ("b", 2048), ("c", 3 * 1024**2)]
-        )
-        self.assertEqual(
-            converted, [("a", 512, "B"), ("b", 2.0, "K"), ("c", 3.0, "M")]
-        )
+        """Sizes use bytes, then the largest unit up to terabytes."""
+        cases = [
+            (0, "0B"),
+            (512, "512B"),
+            (1023, "1023B"),
+            (1536, "1.5K"),
+            (3 * 1024**2, "3.0M"),
+            (1024**2 - 1, "1.0M"),
+            (5 * 1024**3, "5.0G"),
+            (7 * 1024**4, "7.0T"),
+            (2048 * 1024**4, "2048.0T"),
+        ]
+        for size, expected in cases:
+            self.assertEqual(findbig.human_size(size), expected)
 
-    def test_time_buckets(self):
+    def test_age_buckets(self):
         """Ages use seconds, minutes, hours, days, and years."""
         cases = [
             (30, "30.00 (sec)"),
+            (60, "60.00 (sec)"),
             (120, "2.00 (min)"),
             (7200, "2.00 (hr)"),
             (2 * 86400, "2.00 (d)"),
             (730 * 86400, "2.00 (yr)"),
         ]
         for seconds, expected in cases:
-            delta = mock.Mock()
-            delta.total_seconds.return_value = seconds
-            self.assertEqual(findbig.calculate_time(delta), expected)
+            self.assertEqual(findbig.format_age(seconds), expected)
 
 
-class TestSearchPath(unittest.TestCase):
-    """The search path argument."""
+class TestArguments(unittest.TestCase):
+    """The command line arguments."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -79,21 +111,85 @@ class TestSearchPath(unittest.TestCase):
     def test_file_is_refused(self):
         """A path that names a file is refused."""
         path = os.path.join(self.tmp, "file")
-        with open(path, "wb") as handle:
-            handle.write(b"x")
+        write_file(path, 1)
         with self.assertRaises(argparse.ArgumentTypeError):
             findbig.existing_directory(path)
 
     def test_main_exits_2_on_a_missing_path(self):
         """main() prints the usage error and exits with status 2."""
-        argv = ["findbig.py", os.path.join(self.tmp, "missing")]
-        err = io.StringIO()
-        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stderr(
-            err
-        ), self.assertRaises(SystemExit) as raised:
-            findbig.main()
-        self.assertEqual(raised.exception.code, 2)
-        self.assertIn("is not a directory", err.getvalue())
+        code, _, err = run_main([os.path.join(self.tmp, "missing")])
+        self.assertEqual(code, 2)
+        self.assertIn("is not a directory", err)
+
+    def test_positive_counts_are_accepted(self):
+        """A whole number greater than 0 is returned as an integer."""
+        self.assertEqual(findbig.positive_int("3"), 3)
+
+    def test_other_counts_are_refused(self):
+        """Zero, negative, and non-integer counts are refused."""
+        for text in ("0", "-2", "ten", "1.5", ""):
+            with self.assertRaises(argparse.ArgumentTypeError):
+                findbig.positive_int(text)
+
+    def test_main_exits_2_on_zero_lines(self):
+        """-n 0 is a usage error with status 2, not a traceback."""
+        code, out, err = run_main(["-n", "0", self.tmp])
+        self.assertEqual(code, 2)
+        self.assertIn("greater than 0", err)
+        self.assertNotIn("Traceback", err)
+        self.assertEqual(out, "")
+
+    def test_lines_limit_the_rows(self):
+        """-n limits the table to that many rows."""
+        for name in ("a", "b", "c"):
+            write_file(os.path.join(self.tmp, name), 10)
+        code, out, _ = run_main(["-n", "2", self.tmp])
+        self.assertEqual(code, 0)
+        self.assertEqual(len(table_paths(out)), 2)
+
+    def test_default_lines_follow_the_terminal(self):
+        """The default is the terminal's height less 5, and at least 1."""
+        for lines, expected in ((24, 19), (3, 1)):
+            size = os.terminal_size((80, lines))
+            with mock.patch.object(
+                shutil, "get_terminal_size", return_value=size
+            ):
+                args = findbig.parse_args([self.tmp])
+            self.assertEqual(args.lines_to_print, expected)
+
+
+class TestCreationColumn(unittest.TestCase):
+    """The creation column's label and source."""
+
+    def test_birth_time_where_recorded(self):
+        """A stat result with a birth time gives a Created column."""
+        with_birth = types.SimpleNamespace(st_birthtime=None)
+        self.assertEqual(
+            findbig.creation_column(with_birth), ("Created", "st_birthtime")
+        )
+
+    def test_change_time_otherwise(self):
+        """A stat result without a birth time gives a Changed column."""
+        self.assertEqual(
+            findbig.creation_column(types.SimpleNamespace()),
+            ("Changed", "st_ctime"),
+        )
+
+    def test_unrecorded_birth_time_shows_a_dash(self):
+        """A birth time of 0 or less shows as -."""
+        now = time.time()
+        info = types.SimpleNamespace(st_birthtime=-1, st_mtime=now - 120)
+        with mock.patch.object(findbig.os, "lstat", return_value=info):
+            self.assertEqual(
+                findbig.ages("x", "st_birthtime", now), ("-", "2.00 (min)")
+            )
+
+    def test_header_names_the_column(self):
+        """The table header uses this system's creation column label."""
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        header = run_findbig(tmp).splitlines()[0]
+        self.assertIn(f" {findbig.creation_column()[0]} ", header)
 
 
 class TestWalk(unittest.TestCase):
@@ -103,15 +199,57 @@ class TestWalk(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.top = os.path.join(self.tmp, "top")
-        os.makedirs(os.path.join(self.top, "sub"))
-        self.big = os.path.join(self.top, "sub", "big.bin")
-        with open(self.big, "wb") as handle:
-            handle.write(b"\0" * 2048)
+        self.sub = os.path.join(self.top, "sub")
+        os.makedirs(self.sub)
+        self.big = os.path.join(self.sub, "big.bin")
+        write_file(self.big, 2048)
 
     def test_file_size_is_listed(self):
         """A file is listed with its size."""
         output = run_findbig(self.top)
         self.assertTrue(line_for(output, self.big).endswith("2.0K"))
+
+    def test_directory_size_is_the_total_of_its_files(self):
+        """A directory's own size is not added to its total."""
+        write_file(os.path.join(self.top, "small.bin"), 100)
+        empty = os.path.join(self.top, "empty")
+        os.makedirs(empty)
+        sizes = findbig.walk_sizes(self.top)
+        self.assertEqual(sizes[self.top], 2148)
+        self.assertEqual(sizes[self.sub], 2048)
+        self.assertEqual(sizes[empty], 0)
+
+    def test_largest_first_and_directory_before_a_tie(self):
+        """Rows run largest first; a directory precedes an equal entry."""
+        small = os.path.join(self.top, "small.bin")
+        write_file(small, 100)
+        empty = os.path.join(self.top, "empty")
+        os.makedirs(empty)
+        self.assertEqual(
+            table_paths(run_findbig(self.top)),
+            [self.top, self.sub, self.big, small, empty],
+        )
+
+    def test_no_line_ends_in_a_space(self):
+        """Every table line, the header included, ends without a space."""
+        for line in run_findbig(self.top).splitlines():
+            self.assertEqual(line, line.rstrip())
+
+    def test_symbolic_link_counts_as_zero(self):
+        """A link to a file counts as 0 bytes and is not followed."""
+        link = os.path.join(self.top, "link.bin")
+        os.symlink(self.big, link)
+        sizes = findbig.walk_sizes(self.top)
+        self.assertEqual(sizes[link], 0)
+        self.assertEqual(sizes[self.top], 2048)
+
+    def test_link_to_a_directory_is_not_followed(self):
+        """A link to a directory counts as 0 bytes and is not walked."""
+        link = os.path.join(self.top, "loop")
+        os.symlink(self.top, link)
+        sizes = findbig.walk_sizes(self.top)
+        self.assertEqual(sizes[link], 0)
+        self.assertNotIn(os.path.join(link, "sub"), sizes)
 
     @unittest.skipIf(os.geteuid() == 0, "root can read every directory")
     def test_unreadable_directory_is_skipped(self):
@@ -122,11 +260,12 @@ class TestWalk(unittest.TestCase):
         self.addCleanup(os.chmod, locked, 0o755)
         output = run_findbig(self.top)
         self.assertTrue(line_for(output, self.big).endswith("2.0K"))
+        self.assertTrue(line_for(output, locked).endswith("0B"))
 
     def test_symbolic_link_search_path(self):
         """A search path that is a link to a directory of files is walked."""
         link = os.path.join(self.tmp, "link")
-        os.symlink(os.path.join(self.top, "sub"), link)
+        os.symlink(self.sub, link)
         output = run_findbig(link)
         big = os.path.join(link, "big.bin")
         self.assertTrue(line_for(output, big).endswith("2.0K"))
@@ -141,24 +280,33 @@ class TestWalk(unittest.TestCase):
         self.assertNotIn(" - ", line)
 
     def test_entries_that_vanish_during_the_walk(self):
-        """A file and a directory listed but gone count as 0 bytes."""
-        real_walk = os.walk
+        """A file and a directory removed once listed count as 0 bytes."""
+        gone_dir = os.path.join(self.top, "gone-dir")
+        gone_file = os.path.join(self.top, "gone-file")
+        os.makedirs(gone_dir)
+        write_file(gone_file, 4096)
+        real_scandir = os.scandir
 
-        def walk(path, topdown=True, followlinks=False):
-            for root, dirs, files in real_walk(
-                path, topdown, followlinks=followlinks
-            ):
-                if root == self.top:
-                    dirs = dirs + ["gone-dir"]
-                    files = files + ["gone-file"]
-                yield root, dirs, files
+        def remove_gone(entries):
+            for entry in entries:
+                if entry.path == gone_file:
+                    os.remove(gone_file)
+                elif entry.path == gone_dir:
+                    os.rmdir(gone_dir)
+                yield entry
 
-        with mock.patch.object(findbig.os, "walk", walk):
+        @contextlib.contextmanager
+        def scandir(path):
+            with real_scandir(path) as entries:
+                yield remove_gone(entries)
+
+        with mock.patch.object(findbig.os, "scandir", scandir):
             output = run_findbig(self.top)
-        gone = line_for(output, os.path.join(self.top, "gone-file"))
+        gone = line_for(output, gone_file)
         self.assertTrue(gone.endswith("0B"))
         self.assertIn(" - ", gone)
-        self.assertTrue(line_for(output, self.big).endswith("2.0K"))
+        self.assertTrue(line_for(output, gone_dir).endswith("0B"))
+        self.assertTrue(line_for(output, self.top).endswith("2.0K"))
 
 
 if __name__ == "__main__":

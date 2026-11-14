@@ -1,172 +1,182 @@
 #!/usr/bin/env python3
 #
-# written by Christopher Fernando
 # https://github.com/cdf-eagles/py-findbig
 #
-# This script is an implementation of Jason Fesler's
-# (https://github.com/jfesler) Perl "findbig" script that I've found extremely
-# useful over the years.
+# A Python implementation of Jason Fesler's (https://github.com/jfesler) Perl
+# "findbig" script.
 #
 """
-Find the largest files in the current (or specified) directory and list them
-largest to smallest
+Find the largest files and directories in the current (or specified)
+directory and list them largest to smallest
 """
 
 import argparse
-import datetime
+import heapq
 import os
 import shutil
-import sys
-from itertools import islice
-from os.path import getsize, join
+import time
+from operator import itemgetter
+
+NAME_MIN_WIDTH = 16
+AGE_WIDTH = 12
+SIZE_WIDTH = 10
+# Every column but the name, the three " | " separators, and one spare column
+FIXED_WIDTH = 2 * AGE_WIDTH + SIZE_WIDTH + 3 * 3 + 1
+SIZE_UNITS = ("K", "M", "G", "T")
+MINUTE = 60
+HOUR = 60 * MINUTE
+DAY = 24 * HOUR
+YEAR = 365 * DAY
 
 
-def take(n, iterable):
-    """Return the first n items of the iterable as a list."""
-    return list(islice(iterable, n))
-
-
-def convert_to_human_readable(sorted_list):
+def human_size(size):
     """
-    Convert the values of the sorted dictionary from raw bytes to human
-    readable up to terabytes. Returns a list with the values in readable
-    format.
+    Return a size in bytes as text: bytes below 1024, otherwise the largest
+    unit up to terabytes that keeps the value, rounded to two places, below
+    1024.
     """
-    converted_list = list(
-        map(
-            lambda x: (
-                (x[0], x[1], "B")
-                if x[1] < 1024
-                else (
-                    (x[0], round(x[1] / 1024, 2), "K")
-                    if round(x[1] / 1024, 2) < 1024
-                    else (
-                        (x[0], round(x[1] / 1024**2, 2), "M")
-                        if round(x[1] / 1024**2, 2) < 1024
-                        else (
-                            (x[0], round(x[1] / 1024**3, 2), "G")
-                            if round(x[1] / 1024**3, 2) < 1024
-                            else (x[0], round(x[1] / 1024**4, 2), "T")
-                        )
-                    )
-                )
-            ),
-            sorted_list,
-        )
-    )
-    return converted_list
+    if size < 1024:
+        return f"{size}B"
+    value = float(size)
+    for unit in SIZE_UNITS:
+        value /= 1024
+        if round(value, 2) < 1024:
+            return f"{round(value, 2)}{unit}"
+    return f"{round(value, 2)}{SIZE_UNITS[-1]}"
 
 
-def calculate_time(time_in_seconds):
-    """Convert time_in_seconds to the maximum value of days, months, years."""
-    time_string = ""
-    t = time_in_seconds.total_seconds()
-    if t <= 60:
-        time_string = f"{t:.2f} (sec)"
-    elif t / 60 < 60:
-        time_string = f"{t/60:.2f} (min)"
-    elif t / 60**2 < 24:
-        time_string = f"{t/60**2:.2f} (hr)"
-    elif t / (60 * 60 * 24) < 365:
-        time_string = f"{t/(60*60*24):.2f} (d)"
-    else:
-        time_string = f"{t/(60*60*24*365):.2f} (yr)"
-
-    return time_string
+def format_age(seconds):
+    """Return an age in seconds in the largest unit up to years."""
+    if seconds <= MINUTE:
+        return f"{seconds:.2f} (sec)"
+    for limit, unit_seconds, unit in (
+        (HOUR, MINUTE, "min"),
+        (DAY, HOUR, "hr"),
+        (YEAR, DAY, "d"),
+    ):
+        if seconds < limit:
+            return f"{seconds / unit_seconds:.2f} ({unit})"
+    return f"{seconds / YEAR:.2f} (yr)"
 
 
-def calculate_age(timestamp):
-    """Calculate the age between a timestamp and the current time"""
-    current_time = datetime.datetime.now()
-    date = datetime.datetime.fromtimestamp(timestamp)
-    return calculate_time(current_time - date)
+def creation_column(stat_type=os.stat_result):
+    """
+    Return the creation column's label and the stat field it reads: the birth
+    time where the operating system records one, otherwise the inode change
+    time.
+    """
+    if hasattr(stat_type, "st_birthtime"):
+        return "Created", "st_birthtime"
+    return "Changed", "st_ctime"
 
 
-def size_of(path):
-    """Return the size of path in bytes, or 0 if it can no longer be read"""
+def ages(path, field, now):
+    """
+    Return the ages of path from field and from its modification time, read
+    from the entry itself with one lstat; "-" when it cannot be read or the
+    time is not recorded.
+    """
     try:
-        return getsize(path)
+        info = os.lstat(path)
+    except OSError:
+        return "-", "-"
+    created = getattr(info, field)
+    created_age = format_age(now - created) if created > 0 else "-"
+    return created_age, format_age(now - info.st_mtime)
+
+
+def entry_size(entry):
+    """
+    Return a file entry's size in bytes: 0 for a symbolic link or an entry
+    that can no longer be read.
+    """
+    try:
+        if entry.is_symlink():
+            return 0
+        return entry.stat(follow_symlinks=False).st_size
     except OSError:
         return 0
 
 
-def age_of(path, field):
-    """Return the age of path from its own lstat field, or "-" if unreadable"""
+def is_directory(entry):
+    """Return True if entry is a directory and not a symbolic link."""
     try:
-        return calculate_age(getattr(os.lstat(path), field))
+        return entry.is_dir(follow_symlinks=False)
     except OSError:
-        return "-"
+        return False
 
 
-def print_table(sorted_list):
-    """Print the results in a human readable table"""
-    term_size = shutil.get_terminal_size()
-    header = "Directory/File", "Created", "Modified", "Size"
-    col1, col2, col3, col4 = 16, 12, 12, 10
-    max_length = max(len(x) for x, y, z in sorted_list)
+def walk_sizes(top):
+    """
+    Return the size in bytes of top and of every file and directory under it.
+    A directory's size is the total of the files below it. Symbolic links
+    count as 0 bytes and are not followed, and an entry that vanishes or
+    cannot be read counts as 0 bytes.
+    """
+    sizes = {}
+    subdirectories = {}
+    pending = [top]
+    while pending:
+        path = pending.pop()
+        # Placed before its entries so a directory sorts ahead of a tie
+        sizes[path] = 0
+        found = []
+        total = 0
+        try:
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    if is_directory(entry):
+                        found.append(entry.path)
+                    else:
+                        size = entry_size(entry)
+                        sizes[entry.path] = size
+                        total += size
+        except OSError:
+            pass
+        sizes[path] = total
+        subdirectories[path] = found
+        pending.extend(reversed(found))
 
-    if col1 < max_length < (int(term_size.columns) - 44):
-        col1 = max_length
-    else:
-        col1 = int(term_size.columns) - 44
-
-    # output header formatted for terminal size
-    print(f"{header[0]:^{col1}} | {header[1]:^{col2}} |", end="")
-    print(f"{header[2]:^{col3}}  | {header[3]:^{col4}}", end="\n")
-    print(f'{"-"*col1:^{col1}}-|-{"-"*col2:^{col2}}-|', end="")
-    print(f'-{"-"*col3:^{col3}}-|-{"-"*col4:^{col4}}', end="\n")
-
-    for fobj, size, unit in sorted_list:
-        size_unit = str(size) + str(unit)
-
-        # calculate age of filesystem objects in the output list
-        age_from_creation = age_of(fobj, "st_ctime")
-        age_from_modification = age_of(fobj, "st_mtime")
-
-        # output data; one line per object formatted for terminal size
-        print(f"{fobj[:col1]:<{col1}} | ", end="")
-        print(f"{age_from_creation:<{col2}} | ", end="")
-        print(f"{age_from_modification:<{col3}} |", end="")
-        print(f"{size_unit:>{col4}}", end="\n")
+    # A directory is listed before everything under it, so reversed order
+    # totals every subdirectory before its parent.
+    for path in reversed(list(subdirectories)):
+        sizes[path] += sum(sizes[sub] for sub in subdirectories[path])
+    return sizes
 
 
-def findbig(args_list, rows_to_print):
-    """Walk the provided directory and find all the largest files"""
-    dirs_dict = {}
-    for root, dirs, files in os.walk(
-        args_list.search_path, topdown=False, followlinks=False
-    ):
-        dir_size = 0
-        if not os.path.islink(root):
-            dir_size = size_of(root)
+def largest(sizes, count):
+    """Return the count largest (path, size) pairs, largest first."""
+    return heapq.nlargest(count, sizes.items(), key=itemgetter(1))
 
-        for name in files:
-            full_path = join(root, name)
-            if os.path.islink(full_path):
-                file_size = 0
-            else:
-                file_size = size_of(full_path)
-            dirs_dict[full_path] = file_size
-            dir_size += file_size
 
-        subdir_size = 0
-        for d in dirs:
-            full_path = join(root, d)
-            if os.path.islink(full_path):
-                dirs_dict[full_path] = 0
-            else:
-                subdir_size += dirs_dict.get(full_path, 0)
+def print_table(rows):
+    """Print (path, size) rows as a table sized for the terminal."""
+    label, field = creation_column()
+    columns = shutil.get_terminal_size().columns
+    longest = max(len(path) for path, _ in rows)
+    width = max(NAME_MIN_WIDTH, min(longest, columns - FIXED_WIDTH))
 
-        dirs_dict[root] = dir_size + subdir_size
-
-    sorted_dirs_dict = dict(
-        sorted(dirs_dict.items(), reverse=True, key=lambda item: item[1])
+    header = (
+        f"{'Directory/File':^{width}} | {label:^{AGE_WIDTH}} | "
+        f"{'Modified':^{AGE_WIDTH}} | {'Size':^{SIZE_WIDTH}}"
     )
-    print_table(
-        convert_to_human_readable(
-            take(rows_to_print, sorted_dirs_dict.items())
+    print(header.rstrip())
+    print(
+        "-|-".join("-" * w for w in (width, AGE_WIDTH, AGE_WIDTH, SIZE_WIDTH))
+    )
+
+    now = time.time()
+    for path, size in rows:
+        created, modified = ages(path, field, now)
+        print(
+            f"{path[:width]:<{width}} | {created:<{AGE_WIDTH}} | "
+            f"{modified:<{AGE_WIDTH}} | {human_size(size):>{SIZE_WIDTH}}"
         )
-    )
+
+
+def findbig(search_path, rows_to_print):
+    """Walk search_path and print its largest files and directories."""
+    print_table(largest(walk_sizes(search_path), rows_to_print))
 
 
 def existing_directory(path):
@@ -176,65 +186,52 @@ def existing_directory(path):
     return path
 
 
-def main():
-    """main function execution"""
-    terminal_size = shutil.get_terminal_size()
+def positive_int(text):
+    """Return text as an integer if it is a whole number greater than 0"""
+    try:
+        value = int(text)
+    except ValueError:
+        value = 0
+    if value <= 0:
+        raise argparse.ArgumentTypeError(
+            f"{text} is not a whole number greater than 0"
+        )
+    return value
 
+
+def parse_args(argv=None):
+    """Return the parsed command line arguments"""
     parser = argparse.ArgumentParser(
-        description="This script recursively finds the largest \
-                     files/directories in the current working directory \
-                     (default) or the specified directory.",
+        description="This script recursively finds the largest "
+        "files/directories in the current working directory (default) or "
+        "the specified directory.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        epilog=f"Example: {sys.argv[0]} -n 10 /tmp",
+        epilog="Example: %(prog)s -n 10 /tmp",
     )
-
-    # optional argument for search path
     parser.add_argument(
         "search_path",
         nargs="?",
         default="./",
         type=existing_directory,
-        help="If provided, program will search the provided path \
-              instead of the current working directory.",
+        help="If provided, program will search the provided path instead of "
+        "the current working directory.",
     )
-
-    # optional argument for number of lines to print
     parser.add_argument(
         "-n",
         "--num",
         dest="lines_to_print",
-        nargs=1,
-        type=int,
-        default=terminal_size.lines - 5,
+        metavar="LINES",
+        type=positive_int,
+        default=max(1, shutil.get_terminal_size().lines - 5),
         help="The number of lines to display.",
     )
+    return parser.parse_args(argv)
 
-    try:
-        args = parser.parse_args()
-    except argparse.ArgumentError as e:
-        print(f"An error occured: {e}")
 
-    __lines_to_print__ = ""
-    if args.lines_to_print is not None:
-        if isinstance(args.lines_to_print, int):
-            __lines_to_print__ = args.lines_to_print
-        else:
-            __lines_to_print__ = int("".join(map(str, args.lines_to_print)))
-
-    if __lines_to_print__ <= 0:
-        raise argparse.ArgumentError(
-            __lines_to_print__,
-            f"Lines to print must be a value greater than 0: \
-              {__lines_to_print__} is not valid",
-        )
-
-    try:
-        findbig(args, __lines_to_print__)
-    except argparse.ArgumentError as e:
-        print(f"An error occured: {e}")
-        sys.exit(1)
-
-    sys.exit(0)
+def main(argv=None):
+    """main function execution"""
+    args = parse_args(argv)
+    findbig(args.search_path, args.lines_to_print)
 
 
 if __name__ == "__main__":
