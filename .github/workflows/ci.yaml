@@ -85,6 +85,22 @@ jobs:
       - name: Run gitleaks over the history of the checked-out commit
         run: '"${RUNNER_TEMP}/gitleaks" git --no-banner --redact --verbose --log-opts="HEAD" .'
 
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # unittest exits non-zero when it finds no tests (Python 3.12 and later).
+      - name: Run the unit tests
+        run: |
+          python3 --version
+          python3 -m unittest discover --start-directory tests --top-level-directory . --verbose
+
   tool-drift:
     name: Tool drift
     if: github.event_name == 'schedule'
