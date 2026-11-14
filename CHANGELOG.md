@@ -7,6 +7,13 @@
   - A file or directory that vanishes during the walk, or a subdirectory that cannot be read, no longer stops the script with a `KeyError` or `FileNotFoundError`: such entries count as 0 bytes, and an age that cannot be read shows as `-`. Fixes issue #14; found internally from backlog item 568.
   - A file that vanishes no longer takes the size of the file listed before it, and a search path that is a symbolic link to a directory no longer fails with an `UnboundLocalError`.
   - A symbolic link whose target is gone no longer stops the script with a `FileNotFoundError`: ages are read from the entry itself (`os.lstat`), so a link shows its own age, as it already counted as 0 bytes instead of its target's size.
+  - `-n` takes a whole number greater than 0 and refuses anything else with a usage error, where `-n 0` used to end in an `AttributeError`; error handling that could never run is gone. Found internally from backlog item 569.
+  - A directory's size is the total of the files below it, without the size the file system reports for each directory, so an empty directory shows `0B`.
+  - The creation column shows the birth time where the operating system records one, as on macOS and FreeBSD, and elsewhere is labelled `Changed`, since it shows the inode change time; it was labelled `Created` everywhere.
+  - The walk reads each file once with `os.scandir`, where it used to read each file and directory twice, and keeps only the largest entries instead of sorting all of them; on a 271,126-entry tree it took 0.72 times as long.
+  - The table's columns line up, and a short path no longer widens the name column to the terminal's width.
+  - The README's help text and examples match the script, and it explains what the sizes and ages mean and how to install the script; the header comment keeps only the project link and the credit to the Perl script.
+  - Tagged `v0.3.0` with these changes.
 
 - 2026-11-12
   - Removed the SonarCloud analysis workflow, which was disabled in GitHub Actions and had never run; SonarCloud's Automatic Analysis already scans every push and pull request. Found internally from backlog item 353.
