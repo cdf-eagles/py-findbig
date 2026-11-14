@@ -21,7 +21,12 @@ The hooks run black, isort, flake8, pylint, actionlint, the secret checks, and t
 
 Dependabot opens weekly pull requests for all of these.
 
-## Releases
+## Branches and releases
 
-* Raise `__version__` in `findbig.py` in the pull request that prepares a release, so `--version` and `--help` name it.
-* After that pull request merges, tag `main` as `v<version>` (for example `v0.4.0`) and publish a GitHub release from the tag with the changelog's lines for it.
+* Work goes to `main` only through squash-merged pull requests. The branch prefix decides the next release's version bump: `major/` (major), `feat/` (minor), `fix/` (patch); `build/`, `ignore/`, and Dependabot's branches do not bump and ship with the next release.
+* Cutting a release (see the README's Releases section):
+  * `scripts/next-version.sh` proposes the next version and prints the tag commands; it needs the GitHub CLI (`gh`) to read the squash-merged pull requests.
+  * If `__version__` in `findbig.py` differs from the proposal, a `build/` pull request raises it first, with its changelog lines.
+  * Tag the proposal's release candidate with the signed `git tag -s vX.Y.Z-rc.N` command it prints, on that `main` commit, and push the tag. The Release workflow refuses a tag that is not annotated, not verified-signed, not on `main`, or does not match `__version__` (`scripts/check-release-version.sh`).
+  * After checking the pre-release's `findbig.py`, push the signed `vX.Y.Z` tag on the same commit; the workflow republishes the release candidate's own files.
+* The release scripts are POSIX `sh`, shellcheck-clean, and run on macOS and Linux; their tests are in `tests/test_release_scripts.py`.

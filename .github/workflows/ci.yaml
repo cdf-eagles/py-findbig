@@ -41,6 +41,11 @@ jobs:
           "${RUNNER_TEMP}/venv/bin/pip" install --quiet --require-virtualenv -r ci/requirements.txt
           echo "${RUNNER_TEMP}/venv/bin" >> "${GITHUB_PATH}"
 
+      - name: Run shellcheck
+        run: |
+          shellcheck --version
+          shellcheck -s sh scripts/*.sh
+
       - name: Run yamllint
         run: |
           yamllint --version
