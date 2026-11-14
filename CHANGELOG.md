@@ -2,6 +2,8 @@
 
 - 2026-11-14
   - This changelog starts, filled in from the repository's history. Found internally from backlog item 566.
+  - A search path that does not exist or is not a directory now stops with a usage error instead of a traceback from an empty result list. Found internally from backlog item 567.
+  - Dependabot raised the weekly Tool drift job's reusable workflow from v1.0.0 to v1.1.0.
 
 - 2026-11-12
   - Removed the SonarCloud analysis workflow, which was disabled in GitHub Actions and had never run; SonarCloud's Automatic Analysis already scans every push and pull request. Found internally from backlog item 353.

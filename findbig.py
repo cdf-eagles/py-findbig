@@ -160,6 +160,13 @@ def findbig(args_list, rows_to_print):
     )
 
 
+def existing_directory(path):
+    """Return the search path if it names an existing directory"""
+    if not os.path.isdir(path):
+        raise argparse.ArgumentTypeError(f"{path} is not a directory")
+    return path
+
+
 def main():
     """main function execution"""
     terminal_size = shutil.get_terminal_size()
@@ -177,6 +184,7 @@ def main():
         "search_path",
         nargs="?",
         default="./",
+        type=existing_directory,
         help="If provided, program will search the provided path \
               instead of the current working directory.",
     )
