@@ -16,6 +16,7 @@
   - Tagged `v0.3.0` with these changes.
   - A `--csv` option, off by default, writes comma-separated values instead of the table: the full path, the size in whole bytes, and the creation (or change) and modification times as UTC timestamps, with a header row. From backlog item 571.
   - `-V` (`--version`) prints the release version, `v0.4.0`, which `--help` shows too; `CONTRIBUTING.md` says to raise it before each release is tagged.
+  - Releases follow zpool-status-exporter's process: the branch prefix (`major/`, `feat/`, `fix/`) decides the bump, `scripts/next-version.sh` proposes the version, a signed `vX.Y.Z-rc.N` tag publishes a pre-release with `findbig.py`, `SHA256SUMS`, and a build provenance attestation, and a signed `vX.Y.Z` tag promotes it. The `Release` workflow refuses a tag that does not match `__version__` (`scripts/check-release-version.sh`), and the `Lint` job runs shellcheck over `scripts/`. From backlog item 571.
 
 - 2026-11-12
   - Removed the SonarCloud analysis workflow, which was disabled in GitHub Actions and had never run; SonarCloud's Automatic Analysis already scans every push and pull request. Found internally from backlog item 353.

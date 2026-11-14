@@ -21,6 +21,8 @@ git clone https://github.com/cdf-eagles/py-findbig.git
 ln -s "$PWD/py-findbig/findbig.py" ~/bin/findbig.py
 ```
 
+Or download `findbig.py` and `SHA256SUMS` from a [release](https://github.com/cdf-eagles/py-findbig/releases) and check them before use: `shasum -a 256 -c SHA256SUMS` on macOS (`sha256sum -c SHA256SUMS` elsewhere), and `gh attestation verify findbig.py --repo cdf-eagles/py-findbig` for the build provenance.
+
 ## What it reports
 
 * Each row is a file or directory under the search path, largest first, up to the number of lines asked for. Of two entries the same size, a directory is listed before what is in it.
@@ -135,11 +137,22 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) to set up the checks locally.
 
 The `CI` workflow (`.github/workflows/ci.yaml`) runs on every pull request to `main`, every push to `main`, and weekly. It has these jobs:
 
-* `Lint` runs yamllint, then every pre-commit hook over all files: black, isort, flake8, pylint, actionlint, the GitHub workflow and Dependabot schema checks, and the private-key checks.
+* `Lint` runs shellcheck over `scripts/`, yamllint, then every pre-commit hook over all files: black, isort, flake8, pylint, actionlint, the GitHub workflow and Dependabot schema checks, and the private-key checks.
 * `Secret scan` runs gitleaks over the full git history.
 * `Test` runs the unit tests in `tests/` with `python3 -m unittest`.
 * `Tool drift` runs weekly and opens an issue when a pinned tool has a newer release.
 
-The tests need only the Python standard library: `python3 -m unittest discover -s tests -t .` runs them locally.
+The tests need only the Python standard library (and `git` for the release script tests): `python3 -m unittest discover -s tests -t .` runs them locally.
+
+## Releases
+
+Work is squash merged into `main` through pull requests from `fix/`, `feat/`, `major/`, `build/`, or `ignore/` branches. A release is cut from `main`:
+
+1. `scripts/next-version.sh` proposes the next version from the branch prefixes of the pull requests merged since the last release tag (it looks them up with the GitHub CLI, `gh`): `major/` bumps the major version, `feat/` the minor, and `fix/` the patch.
+2. `__version__` in `findbig.py` must name that version, since `--version` and `--help` show it; a `build/` pull request raises it when it does not.
+3. A signed release candidate tag `vX.Y.Z-rc.N` on that `main` commit runs the `Release` workflow (`.github/workflows/release.yaml`). It checks that the tag is annotated, verified-signed, on `main`, and matches `__version__`, runs the unit tests, and publishes a pre-release holding `findbig.py`, `SHA256SUMS`, and a build provenance attestation.
+4. After the release candidate is proven, the same commit is tagged `vX.Y.Z`. The workflow publishes the release candidate's own files as the release, after checking them against their checksums and attestations.
+
+`build/`, `dependabot/`, and `ignore/` pull requests do not bump the version and ship with the next release.
 
 Tool versions live in one place each: Python tools in `ci/requirements.txt`, pre-commit hooks in `.pre-commit-config.yaml`, and the gitleaks release in the workflow `env:` block with its SHA-256 checksum. Dependabot updates all of them.
