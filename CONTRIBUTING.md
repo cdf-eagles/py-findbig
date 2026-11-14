@@ -9,6 +9,7 @@
 * Run every check over all files
   * `PATH="$PWD/.venv/bin:$PATH" pre-commit run --all-files`
   * `PATH="$PWD/.venv/bin:$PATH" yamllint --strict .`
+  * `python3 -m unittest discover -s tests -t .`
 
 The hooks run black, isort, flake8, pylint, actionlint, the secret checks, and the GitHub workflow and Dependabot schema checks. A `pre-push` hook also runs gitleaks over the commits being pushed, so install gitleaks locally (`brew install gitleaks`).
 

@@ -89,8 +89,9 @@ The `CI` workflow (`.github/workflows/ci.yaml`) runs on every pull request to `m
 
 * `Lint` runs yamllint, then every pre-commit hook over all files: black, isort, flake8, pylint, actionlint, the GitHub workflow and Dependabot schema checks, and the private-key checks.
 * `Secret scan` runs gitleaks over the full git history.
+* `Test` runs the unit tests in `tests/` with `python3 -m unittest`.
 * `Tool drift` runs weekly and opens an issue when a pinned tool has a newer release.
 
-There are no automated tests in this repository.
+The tests need only the Python standard library: `python3 -m unittest discover -s tests -t .` runs them locally.
 
 Tool versions live in one place each: Python tools in `ci/requirements.txt`, pre-commit hooks in `.pre-commit-config.yaml`, and the gitleaks release in the workflow `env:` block with its SHA-256 checksum. Dependabot updates all of them.
