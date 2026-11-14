@@ -8,7 +8,7 @@
 
 # Python Implementation of 'findbig'
 
-This is a Python 3 implementation of [Jason Fesler's](https://github.com/jfesler) Perl 5 'findbig' script. It lists the largest files and directories under the current directory, or a directory you name, largest first.
+This is a Python 3 implementation of [Jason Fesler's](https://github.com/jfesler) Perl 5 'findbig' script. It lists the largest files and directories under the current directory, or a directory you name, largest first, as a table or, with `--csv`, as comma-separated values.
 
 It has been tested on macOS and FreeBSD, and it should work on other UNIX and Linux systems with Python 3 installed. It needs only the Python standard library.
 
@@ -30,16 +30,17 @@ ln -s "$PWD/py-findbig/findbig.py" ~/bin/findbig.py
 * A file or directory that vanishes during the walk, or a directory that cannot be read, counts as 0 bytes, and an age that cannot be read shows as `-`.
 * The second column is the time since the entry was created, labelled `Created`, on systems that record a birth time, such as macOS and FreeBSD; a file system that records none shows `-`. Elsewhere, such as on Linux, it is the time since the entry's inode last changed, labelled `Changed`.
 * Ages are read from each entry itself, so a symbolic link shows its own ages, not its target's.
+* With `--csv`, which is off by default, the output is comma-separated values (CSV) instead of the table, for a spreadsheet or another tool: a header row, then one row per entry with the full path (never cut to the terminal's width), the size in whole bytes, and the creation (or change) and modification times as Coordinated Universal Time (UTC) timestamps in ISO 8601 form. The third column is named `created` or `changed` by the same rule as the table's second column, and a time that cannot be read or is not recorded is empty. A path holding a comma, a quote, or a line break is quoted.
 
 ## Example Usage
 
 ### Help
 
-The default number of lines is the terminal's height less 5: a standard 80x24 terminal prints 19 lines. `-n` takes a whole number greater than 0; anything else is a usage error.
+The default number of lines is the terminal's height less 5: a standard 80x24 terminal prints 19 lines. `-n` takes a whole number greater than 0; anything else is a usage error. `-V` (`--version`) prints the release the script belongs to, the same version as its GitHub release tag, and the help shows it too.
 
 ```
 $ findbig.py -h
-usage: findbig.py [-h] [-n LINES] [search_path]
+usage: findbig.py [-h] [-n LINES] [--csv] [-V] [search_path]
 
 This script recursively finds the largest files/directories in the current
 working directory (default) or the specified directory.
@@ -51,6 +52,9 @@ positional arguments:
 options:
   -h, --help       show this help message and exit
   -n, --num LINES  The number of lines to display. (default: 19)
+  --csv            Write comma-separated values (path, size in bytes, and UTC
+                   times) instead of the table. (default: False)
+  -V, --version    Show the release version (v0.4.0) and exit.
 
 Example: findbig.py -n 10 /tmp
 ```
@@ -104,6 +108,25 @@ $ findbig.py -n 4 ./a
 ./a/1            | 0.09 (sec)   | 0.09 (sec)   |      84.0M
 ./a/1/file1      | 0.09 (sec)   | 0.09 (sec)   |      52.0M
 ./a/1/z          | 0.09 (sec)   | 0.09 (sec)   |      32.0M
+```
+
+### CSV output
+
+This example ran on Linux, where the third column is `changed`, in a tree like the one above with a file whose name holds a comma.
+
+```
+$ findbig.py --csv
+path,size_bytes,changed,modified
+./,120586240,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./a,65011712,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./a/1,54525952,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./a/1/file1,54525952,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./b,45088768,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./b/2,45088768,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./b/2/file2,45088768,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./a/filea,10485760,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+./c,10485760,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+"./c/file, with a comma",10485760,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
 ```
 
 ## Development and CI

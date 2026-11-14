@@ -20,3 +20,8 @@ The hooks run black, isort, flake8, pylint, actionlint, the secret checks, and t
 * gitleaks in CI: `GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `.github/workflows/ci.yaml`.
 
 Dependabot opens weekly pull requests for all of these.
+
+## Releases
+
+* Raise `__version__` in `findbig.py` in the pull request that prepares a release, so `--version` and `--help` name it.
+* After that pull request merges, tag `main` as `v<version>` (for example `v0.4.0`) and publish a GitHub release from the tag with the changelog's lines for it.

@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import csv
 import io
 import os
 import shutil
@@ -9,6 +10,7 @@ import tempfile
 import time
 import types
 import unittest
+from datetime import datetime, timezone
 from unittest import mock
 
 import findbig
@@ -307,6 +309,120 @@ class TestWalk(unittest.TestCase):
         self.assertIn(" - ", gone)
         self.assertTrue(line_for(output, gone_dir).endswith("0B"))
         self.assertTrue(line_for(output, self.top).endswith("2.0K"))
+
+
+class TestCsvOutput(unittest.TestCase):
+    """The --csv option."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.sub = os.path.join(self.tmp, "sub")
+        os.makedirs(self.sub)
+        self.big = os.path.join(self.sub, "big.bin")
+        write_file(self.big, 2048)
+        write_file(os.path.join(self.tmp, "small.bin"), 100)
+
+    def csv_rows(self, *args):
+        """Run main() with --csv and args; return the parsed rows."""
+        code, out, err = run_main(["--csv", *args])
+        self.assertEqual((code, err), (0, ""))
+        return list(csv.reader(io.StringIO(out, newline="")))
+
+    def test_off_by_default(self):
+        """Without --csv the option is off and the table is printed."""
+        self.assertFalse(findbig.parse_args([self.tmp]).csv_output)
+        self.assertTrue(findbig.parse_args(["--csv", self.tmp]).csv_output)
+        code, out, _ = run_main([self.tmp])
+        self.assertEqual(code, 0)
+        self.assertTrue(out.splitlines()[0].strip().startswith("Directory"))
+        self.assertEqual(table_paths(out)[0], self.tmp)
+
+    def test_header_names_the_columns(self):
+        """The header names the path, bytes, creation, and modified."""
+        label = findbig.creation_column()[0].lower()
+        self.assertEqual(
+            self.csv_rows(self.tmp)[0],
+            ["path", "size_bytes", label, "modified"],
+        )
+
+    def test_rows_read_back_to_the_walk(self):
+        """Paths and whole-byte sizes match the walk, largest first."""
+        expected = findbig.largest(findbig.walk_sizes(self.tmp), 10)
+        rows = self.csv_rows("-n", "10", self.tmp)[1:]
+        self.assertEqual([(row[0], int(row[1])) for row in rows], expected)
+
+    def test_lines_limit_the_rows(self):
+        """-n limits the rows after the header."""
+        self.assertEqual(len(self.csv_rows("-n", "2", self.tmp)), 3)
+
+    def test_awkward_paths_are_quoted(self):
+        """A comma, a quote, or a line break in a path survives a read."""
+        name = os.path.join(self.tmp, 'odd, "name"\nhere')
+        write_file(name, 4096)
+        paths = [row[0] for row in self.csv_rows(self.tmp)[1:]]
+        self.assertIn(name, paths)
+
+    def test_long_paths_are_not_cut(self):
+        """A path wider than the terminal is written whole."""
+        deep = os.path.join(self.tmp, "d" * 120, "e" * 120)
+        os.makedirs(deep)
+        write_file(os.path.join(deep, "f"), 8192)
+        narrow = os.terminal_size((80, 24))
+        out = io.StringIO()
+        with mock.patch.object(
+            shutil, "get_terminal_size", return_value=narrow
+        ), contextlib.redirect_stdout(out):
+            findbig.main(["--csv", self.tmp])
+        paths = [row[0] for row in csv.reader(io.StringIO(out.getvalue()))]
+        self.assertIn(os.path.join(deep, "f"), paths)
+
+    def test_times_are_utc_timestamps(self):
+        """The modified column is the file's mtime in UTC, to the second."""
+        os.utime(self.big, (1_700_000_000.75, 1_700_000_000.75))
+        row = next(
+            row for row in self.csv_rows(self.tmp) if row[0] == self.big
+        )
+        modified = datetime.fromisoformat(row[3])
+        self.assertEqual(modified.utcoffset().total_seconds(), 0)
+        self.assertEqual(
+            modified,
+            datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc),
+        )
+        self.assertNotEqual(row[2], "")
+
+    def test_unrecorded_or_unreadable_times_are_empty(self):
+        """A birth time of 0 or an entry lstat cannot read gives empty."""
+        info = types.SimpleNamespace(st_birthtime=0, st_mtime=86400)
+        with mock.patch.object(findbig.os, "lstat", return_value=info):
+            self.assertEqual(
+                findbig.times("x", "st_birthtime"),
+                ("", "1970-01-02T00:00:00+00:00"),
+            )
+        with mock.patch.object(
+            findbig.os, "lstat", side_effect=FileNotFoundError
+        ):
+            self.assertEqual(findbig.times("x", "st_ctime"), ("", ""))
+
+
+class TestVersion(unittest.TestCase):
+    """The release version in --version and --help."""
+
+    def test_version_option_prints_the_release(self):
+        """--version prints the release tag and exits with status 0."""
+        code, out, _ = run_main(["--version"])
+        self.assertEqual(code, 0)
+        self.assertEqual(out.split()[-1], f"v{findbig.__version__}")
+
+    def test_help_shows_the_release(self):
+        """--help names the release version."""
+        code, out, _ = run_main(["--help"])
+        self.assertEqual(code, 0)
+        self.assertIn(f"(v{findbig.__version__})", out)
+
+    def test_version_is_a_release_number(self):
+        """The version is three dot-separated numbers, as tags use."""
+        self.assertRegex(findbig.__version__, r"^[0-9]+\.[0-9]+\.[0-9]+$")
 
 
 if __name__ == "__main__":

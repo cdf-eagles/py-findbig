@@ -7,16 +7,22 @@
 #
 """
 Find the largest files and directories in the current (or specified)
-directory and list them largest to smallest
+directory and list them largest to smallest, as a table or as
+comma-separated values
 """
 
 import argparse
+import csv
 import heapq
 import os
 import shutil
+import sys
 import time
+from datetime import datetime, timezone
 from operator import itemgetter
 
+# The release this script belongs to, as tagged on GitHub without the "v"
+__version__ = "0.4.0"
 NAME_MIN_WIDTH = 16
 AGE_WIDTH = 12
 SIZE_WIDTH = 10
@@ -174,9 +180,51 @@ def print_table(rows):
         )
 
 
-def findbig(search_path, rows_to_print):
-    """Walk search_path and print its largest files and directories."""
-    print_table(largest(walk_sizes(search_path), rows_to_print))
+def utc_timestamp(seconds):
+    """Return a time in seconds since the epoch as ISO 8601 text in UTC."""
+    return datetime.fromtimestamp(seconds, timezone.utc).isoformat(
+        timespec="seconds"
+    )
+
+
+def times(path, field):
+    """
+    Return the times of path from field and from its modification time as
+    UTC timestamps, read from the entry itself with one lstat; empty when it
+    cannot be read or the time is not recorded.
+    """
+    try:
+        info = os.lstat(path)
+    except OSError:
+        return "", ""
+    created = getattr(info, field)
+    created_time = utc_timestamp(created) if created > 0 else ""
+    return created_time, utc_timestamp(info.st_mtime)
+
+
+def write_csv(rows, stream=None):
+    """
+    Write (path, size) rows as comma-separated values with a header row:
+    the full path, the size in bytes, and the creation (or change) and
+    modification times in UTC.
+    """
+    label, field = creation_column()
+    writer = csv.writer(stream or sys.stdout, lineterminator="\n")
+    writer.writerow(("path", "size_bytes", label.lower(), "modified"))
+    for path, size in rows:
+        writer.writerow((path, size) + times(path, field))
+
+
+def findbig(search_path, rows_to_print, csv_output=False):
+    """
+    Walk search_path and print its largest files and directories, as a table
+    or, when csv_output is true, as comma-separated values.
+    """
+    rows = largest(walk_sizes(search_path), rows_to_print)
+    if csv_output:
+        write_csv(rows)
+    else:
+        print_table(rows)
 
 
 def existing_directory(path):
@@ -225,13 +273,27 @@ def parse_args(argv=None):
         default=max(1, shutil.get_terminal_size().lines - 5),
         help="The number of lines to display.",
     )
+    parser.add_argument(
+        "--csv",
+        dest="csv_output",
+        action="store_true",
+        help="Write comma-separated values (path, size in bytes, and UTC "
+        "times) instead of the table.",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s v{__version__}",
+        help=f"Show the release version (v{__version__}) and exit.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv=None):
     """main function execution"""
     args = parse_args(argv)
-    findbig(args.search_path, args.lines_to_print)
+    findbig(args.search_path, args.lines_to_print, args.csv_output)
 
 
 if __name__ == "__main__":
