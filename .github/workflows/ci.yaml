@@ -44,7 +44,7 @@ jobs:
       - name: Run shellcheck
         run: |
           shellcheck --version
-          shellcheck -s sh scripts/*.sh
+          shellcheck -s sh scripts/*.sh packaging/*.sh packaging/freebsd/build-pkg.sh packaging/test/check-installed.sh
 
       - name: Run yamllint
         run: |
@@ -105,6 +105,10 @@ jobs:
         run: |
           python3 --version
           python3 -m unittest discover --start-directory tests --top-level-directory . --verbose
+
+  packages:
+    name: Packages
+    uses: ./.github/workflows/packages.yaml
 
   tool-drift:
     name: Tool drift

@@ -545,6 +545,38 @@ class TestReadme(unittest.TestCase):
         self.assertEqual(block.group(1).strip(), out.getvalue().strip())
 
 
+def parser_options():
+    """Return the option strings --help lists, such as -n and --csv."""
+    with mock.patch.object(sys, "argv", ["findbig.py"]):
+        text = findbig.build_parser().format_help()
+    return set(re.findall(r"(?<![\w-])(--?[A-Za-z][-A-Za-z]*)", text))
+
+
+class TestManualPage(unittest.TestCase):
+    """The manual page, docs/findbig.1."""
+
+    def setUp(self):
+        page = os.path.join(os.path.dirname(__file__), "..", "docs")
+        with open(os.path.join(page, "findbig.1"), encoding="utf-8") as stream:
+            self.page = stream.read()
+
+    def test_every_option_is_documented(self):
+        """Each option the parser takes has an .It entry in the page."""
+        for option in parser_options():
+            with self.subTest(option=option):
+                self.assertRegex(
+                    self.page,
+                    rf"(?m)^\.It .*\bFl {re.escape(option[1:])}(?![-\w])",
+                )
+
+    def test_page_names_no_option_the_parser_lacks(self):
+        """Every Fl entry in the page is an option the parser takes."""
+        options = parser_options()
+        for flag in re.findall(r"\bFl (-?-?[A-Za-z][-A-Za-z]*)", self.page):
+            with self.subTest(flag=flag):
+                self.assertIn("-" + flag, options)
+
+
 class TestVersion(unittest.TestCase):
     """The release version in --version and --help."""
 

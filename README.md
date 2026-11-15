@@ -14,7 +14,16 @@ It has been tested on macOS and FreeBSD, and it should work on other UNIX and Li
 
 ## Installation
 
-Clone the repository and link the script into a directory on your `PATH`:
+Each [release](https://github.com/cdf-eagles/py-findbig/releases) from v0.5.0 on publishes packages that install the command as `findbig`, with its manual page (`man findbig`), and depend on the distribution's `python3`. The commands below use v0.5.0's file names; download the files from the release first.
+
+* Debian and Ubuntu: `sudo apt install ./findbig_0.5.0_all.deb`
+* Red Hat Enterprise Linux (RHEL), Rocky Linux, AlmaLinux, and Fedora: `sudo dnf install ./findbig-0.5.0-1.noarch.rpm`
+* Alpine Linux: the `.apk` is signed, so install its public key first: `sudo cp py-findbig.rsa.pub /etc/apk/keys/`, then `sudo apk add ./findbig_0.5.0_noarch.apk`
+* FreeBSD 15: `sudo pkg install python3`, then `sudo pkg add ./findbig-0.5.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
+
+`SHA256SUMS` and the build provenance attestations cover every package, as they do `findbig.py` (below).
+
+Or clone the repository and link the script into a directory on your `PATH`:
 
 ```
 git clone https://github.com/cdf-eagles/py-findbig.git
@@ -184,6 +193,7 @@ The `CI` workflow (`.github/workflows/ci.yaml`) runs on every pull request to `m
 * `Lint` runs shellcheck over `scripts/`, yamllint, then every pre-commit hook over all files: black, isort, flake8, pylint, actionlint, the GitHub workflow and Dependabot schema checks, and the private-key checks.
 * `Secret scan` runs gitleaks over the full git history.
 * `Test` runs the unit tests in `tests/` with `python3 -m unittest`.
+* `Packages` runs the reusable `Packages` workflow (`.github/workflows/packages.yaml`). Its `Linux` job builds the `.deb`, `.rpm`, and `.apk` with nFPM (`packaging/nfpm.yaml`, `packaging/build-linux-packages.sh`), signing the `.apk` with a key made for the run, then installs, removes, and reinstalls each one in a Debian, AlmaLinux, and Alpine Linux container and runs it as the unprivileged user `nobody` (`packaging/test-linux-packages.sh`). Its `FreeBSD` job lints the manual page with `mandoc`, then builds, installs, runs, and removes the FreeBSD package in a FreeBSD virtual machine (`packaging/freebsd/build-pkg.sh`).
 * `Tool drift` runs weekly and opens an issue when a pinned tool has a newer release.
 
 The tests need only the Python standard library (and `git` for the release script tests): `python3 -m unittest discover -s tests -t .` runs them locally.
@@ -194,9 +204,9 @@ Work is squash merged into `main` through pull requests from `fix/`, `feat/`, `m
 
 1. `scripts/next-version.sh` proposes the next version from the branch prefixes of the pull requests merged since the last release tag (it looks them up with the GitHub CLI, `gh`): `major/` bumps the major version, `feat/` the minor, and `fix/` the patch.
 2. `__version__` in `findbig.py` must name that version, since `--version` and `--help` show it; a `build/` pull request raises it when it does not.
-3. A signed release candidate tag `vX.Y.Z-rc.N` on that `main` commit runs the `Release` workflow (`.github/workflows/release.yaml`). It checks that the tag is annotated, verified-signed, on `main`, and matches `__version__`, runs the unit tests, and publishes a pre-release holding `findbig.py`, `SHA256SUMS`, and a build provenance attestation.
+3. A signed release candidate tag `vX.Y.Z-rc.N` on that `main` commit runs the `Release` workflow (`.github/workflows/release.yaml`). It checks that the tag is annotated, verified-signed, on `main`, and matches `__version__`, runs the unit tests, builds and tests the packages through the `Packages` workflow with the `.apk` signed by the `APK_SIGNING_KEY` secret (which must match `packaging/alpine/py-findbig.rsa.pub`), and publishes a pre-release holding `findbig.py`, the packages, the `.apk` public key, `SHA256SUMS`, and build provenance attestations.
 4. After the release candidate is proven, the same commit is tagged `vX.Y.Z`. The workflow publishes the release candidate's own files as the release, after checking them against their checksums and attestations.
 
 `build/`, `dependabot/`, and `ignore/` pull requests do not bump the version and ship with the next release.
 
-Tool versions live in one place each: Python tools in `ci/requirements.txt`, pre-commit hooks in `.pre-commit-config.yaml`, and the gitleaks release in the workflow `env:` block with its SHA-256 checksum. Dependabot updates all of them.
+Tool versions live in one place each: Python tools in `ci/requirements.txt`, pre-commit hooks in `.pre-commit-config.yaml`, the test containers' images in `packaging/test/*/Dockerfile`, the gitleaks release in the CI workflow's `env:` block and the nFPM release in the Packages workflow's, each with its SHA-256 checksum, and the FreeBSD release in the Packages workflow's `FREEBSD_RELEASE`. Dependabot updates the first three; the weekly Tool drift job opens an issue when gitleaks or nFPM has a newer release, and the FreeBSD release is raised by hand.

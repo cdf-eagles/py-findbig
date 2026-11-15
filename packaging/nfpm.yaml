@@ -1,0 +1,30 @@
+---
+name: findbig
+arch: all
+platform: linux
+version: ${VERSION}
+section: utils
+priority: optional
+maintainer: noreply@github.com
+description: List the largest files and directories under a directory
+homepage: https://github.com/cdf-eagles/py-findbig
+license: BSD-3-Clause
+depends:
+  - python3
+contents:
+  - src: build/stage/findbig
+    dst: /usr/bin/findbig
+    file_info:
+      mode: 0755
+  - src: build/stage/findbig.1.gz
+    dst: /usr/share/man/man1/findbig.1.gz
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/doc/findbig/LICENSE
+    file_info:
+      mode: 0644
+apk:
+  signature:
+    key_file: build/apk-signing.rsa
+    key_name: py-findbig

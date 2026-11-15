@@ -24,3 +24,14 @@ updates:
     groups:
       pre-commit-hooks:
         patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /packaging/test/almalinux
+      - /packaging/test/alpine
+      - /packaging/test/debian
+    schedule:
+      interval: weekly
+    groups:
+      package-test-images:
+        patterns: ["*"]

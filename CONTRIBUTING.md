@@ -18,8 +18,11 @@ The hooks run black, isort, flake8, pylint, actionlint, the secret checks, and t
 * Python tools (pre-commit, pylint, yamllint, check-jsonschema, shellcheck-py): `ci/requirements.txt`, exact `==` pins.
 * Pre-commit hooks: the `rev:` of each hook in `.pre-commit-config.yaml`; run `pre-commit autoupdate` to refresh them.
 * gitleaks in CI: `GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `.github/workflows/ci.yaml`.
+* nFPM: `NFPM_VERSION` and `NFPM_SHA256` in `.github/workflows/packages.yaml`, from the release's `checksums.txt`.
+* Package test images: the `FROM` line of each `packaging/test/*/Dockerfile`.
+* The FreeBSD release the package is built and tested on: `FREEBSD_RELEASE` in `.github/workflows/packages.yaml`, raised by hand.
 
-Dependabot opens weekly pull requests for all of these.
+Dependabot opens weekly pull requests for the Python tools, the hooks, the test images, and the actions; the weekly Tool drift job opens an issue for gitleaks and nFPM.
 
 ## Branches and releases
 
@@ -30,3 +33,9 @@ Dependabot opens weekly pull requests for all of these.
   * Tag the proposal's release candidate with the signed `git tag -s vX.Y.Z-rc.N` command it prints, on that `main` commit, and push the tag. The Release workflow refuses a tag that is not annotated, not verified-signed, not on `main`, or does not match `__version__` (`scripts/check-release-version.sh`).
   * After checking the pre-release's `findbig.py`, push the signed `vX.Y.Z` tag on the same commit; the workflow republishes the release candidate's own files.
 * The release scripts are POSIX `sh`, shellcheck-clean, and run on macOS and Linux; their tests are in `tests/test_release_scripts.py`.
+
+## Packages
+
+* `packaging/` builds the `.deb`, `.rpm`, and `.apk` (nFPM) and the FreeBSD package; `docs/findbig.1` is the manual page every package installs. A unit test fails when an option is missing from the page or the page names one the script lacks.
+* The `.apk` is signed with the `APK_SIGNING_KEY` repository secret, whose public half is `packaging/alpine/py-findbig.rsa.pub`; a release fails when they do not match. Pull request runs sign with a key made for the run.
+* To build the Linux packages locally, put `nfpm` on `PATH` and an RSA key at `build/apk-signing.rsa` (`openssl genrsa -out build/apk-signing.rsa 2048`), then run `sh packaging/build-linux-packages.sh "$(python3 findbig.py --version | sed 's/.* v//')" findbig.py dist`. With Docker, `sh packaging/test-linux-packages.sh <version> dist <public key>` installs and runs them.
