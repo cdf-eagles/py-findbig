@@ -7,13 +7,14 @@
 #
 """
 Find the largest files and directories in the current (or specified)
-directory and list them largest to smallest, as a table or as
-comma-separated values
+directory and list them largest to smallest, as a table, as
+comma-separated values, or as JSON
 """
 
 import argparse
 import csv
 import heapq
+import json
 import os
 import shutil
 import sys
@@ -22,7 +23,7 @@ from datetime import datetime, timezone
 from operator import itemgetter
 
 # The release this script belongs to, as tagged on GitHub without the "v"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 NAME_MIN_WIDTH = 16
 AGE_WIDTH = 12
 SIZE_WIDTH = 10
@@ -187,19 +188,27 @@ def utc_timestamp(seconds):
     )
 
 
-def times(path, field):
+def utc_times(path, field):
     """
     Return the times of path from field and from its modification time as
-    UTC timestamps, read from the entry itself with one lstat; empty when it
+    UTC timestamps, read from the entry itself with one lstat; None when it
     cannot be read or the time is not recorded.
     """
     try:
         info = os.lstat(path)
     except OSError:
-        return "", ""
+        return None, None
     created = getattr(info, field)
-    created_time = utc_timestamp(created) if created > 0 else ""
+    created_time = utc_timestamp(created) if created > 0 else None
     return created_time, utc_timestamp(info.st_mtime)
+
+
+def times(path, field):
+    """
+    Return the times of path from field and from its modification time as
+    UTC timestamps; empty when it cannot be read or the time is not recorded.
+    """
+    return tuple(value or "" for value in utc_times(path, field))
 
 
 def write_csv(rows, stream=None):
@@ -215,14 +224,40 @@ def write_csv(rows, stream=None):
         writer.writerow((path, size) + times(path, field))
 
 
-def findbig(search_path, rows_to_print, csv_output=False):
+def write_json(rows, stream=None):
     """
-    Walk search_path and print its largest files and directories, as a table
-    or, when csv_output is true, as comma-separated values.
+    Write (path, size) rows as one JSON array of objects with the same fields
+    as the comma-separated values; a time that cannot be read or is not
+    recorded is null.
+    """
+    label, field = creation_column()
+    records = []
+    for path, size in rows:
+        created, modified = utc_times(path, field)
+        records.append(
+            {
+                "path": path,
+                "size_bytes": size,
+                label.lower(): created,
+                "modified": modified,
+            }
+        )
+    stream = stream or sys.stdout
+    json.dump(records, stream, indent=2)
+    stream.write("\n")
+
+
+def findbig(search_path, rows_to_print, csv_output=False, json_output=False):
+    """
+    Walk search_path and print its largest files and directories, as a table,
+    as comma-separated values when csv_output is true, or as JSON when
+    json_output is true.
     """
     rows = largest(walk_sizes(search_path), rows_to_print)
     if csv_output:
         write_csv(rows)
+    elif json_output:
+        write_json(rows)
     else:
         print_table(rows)
 
@@ -273,11 +308,19 @@ def parse_args(argv=None):
         default=max(1, shutil.get_terminal_size().lines - 5),
         help="The number of lines to display.",
     )
-    parser.add_argument(
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument(
         "--csv",
         dest="csv_output",
         action="store_true",
         help="Write comma-separated values (path, size in bytes, and UTC "
+        "times) instead of the table.",
+    )
+    output.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        help="Write a JSON array of objects (path, size in bytes, and UTC "
         "times) instead of the table.",
     )
     parser.add_argument(
@@ -293,7 +336,12 @@ def parse_args(argv=None):
 def main(argv=None):
     """main function execution"""
     args = parse_args(argv)
-    findbig(args.search_path, args.lines_to_print, args.csv_output)
+    findbig(
+        args.search_path,
+        args.lines_to_print,
+        args.csv_output,
+        args.json_output,
+    )
 
 
 if __name__ == "__main__":
