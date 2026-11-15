@@ -19,6 +19,7 @@ Each [release](https://github.com/cdf-eagles/py-findbig/releases) from v0.5.0 on
 * Debian and Ubuntu: `sudo apt install ./findbig_0.5.0_all.deb`
 * Red Hat Enterprise Linux (RHEL), Rocky Linux, AlmaLinux, and Fedora: `sudo dnf install ./findbig-0.5.0-1.noarch.rpm`
 * Alpine Linux: the `.apk` is signed, so install its public key first: `sudo cp py-findbig.rsa.pub /etc/apk/keys/`, then `sudo apk add ./findbig_0.5.0_noarch.apk`
+* macOS with [Homebrew](https://brew.sh): `brew install cdf-eagles/tap/findbig` installs the command and its manual page from the account's tap ([homebrew-tap](https://github.com/cdf-eagles/homebrew-tap)), with Homebrew's Python, and `brew upgrade findbig` takes each new release; no download is needed.
 * FreeBSD 15: `sudo pkg install python3`, then `sudo pkg add ./findbig-0.5.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
 
 `SHA256SUMS` and the build provenance attestations cover every package, as they do `findbig.py` (below).
@@ -206,6 +207,7 @@ Work is squash merged into `main` through pull requests from `fix/`, `feat/`, `m
 2. `__version__` in `findbig.py` must name that version, since `--version` and `--help` show it; a `build/` pull request raises it when it does not.
 3. A signed release candidate tag `vX.Y.Z-rc.N` on that `main` commit runs the `Release` workflow (`.github/workflows/release.yaml`). It checks that the tag is annotated, verified-signed, on `main`, and matches `__version__`, runs the unit tests, builds and tests the packages through the `Packages` workflow with the `.apk` signed by the `APK_SIGNING_KEY` secret (which must match `packaging/alpine/py-findbig.rsa.pub`), and publishes a pre-release holding `findbig.py`, the packages, the `.apk` public key, `SHA256SUMS`, and build provenance attestations.
 4. After the release candidate is proven, the same commit is tagged `vX.Y.Z`. The workflow publishes the release candidate's own files as the release, after checking them against their checksums and attestations.
+5. The workflow's `homebrew` job then opens a pull request on [homebrew-tap](https://github.com/cdf-eagles/homebrew-tap) that points `Formula/findbig.rb` at the release's source archive (`scripts/update-homebrew-formula.sh pr`). It signs in as a GitHub App installed only on the tap, whose client ID is the `HOMEBREW_TAP_APP_CLIENT_ID` repository variable and whose private key is the `HOMEBREW_TAP_APP_PRIVATE_KEY` secret, with a token limited to the tap's contents and pull requests. The tap's CI audits, installs, and tests the new formula, and the pull request is merged by hand once it passes.
 
 `build/`, `dependabot/`, and `ignore/` pull requests do not bump the version and ship with the next release.
 

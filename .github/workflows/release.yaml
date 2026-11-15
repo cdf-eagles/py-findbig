@@ -210,3 +210,35 @@ jobs:
           TAG: ${{ github.ref_name }}
           RC_TAG: ${{ needs.verify.outputs.rc_tag }}
         run: gh release create "$TAG" dist/* --verify-tag --latest --title "$TAG" --notes "Promoted from ${RC_TAG} without rebuilding. See CHANGELOG.md."
+
+  homebrew:
+    name: Open the Homebrew formula pull request
+    needs: [verify, publish-final]
+    if: needs.verify.outputs.kind == 'final'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The token reaches only the tap, with contents and pull requests write.
+      - name: Create a token for the tap
+        id: tap-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        with:
+          client-id: ${{ vars.HOMEBREW_TAP_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: homebrew-tap
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open the pull request on the tap
+        env:
+          GH_TOKEN: ${{ steps.tap-token.outputs.token }}
+          TAG: ${{ github.ref_name }}
+        run: sh scripts/update-homebrew-formula.sh pr "$TAG"

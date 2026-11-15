@@ -1,5 +1,8 @@
 # Changelog
 
+- 2026-11-15
+  - A final release opens a pull request on the account's Homebrew tap (`homebrew-tap`) that points the `findbig` formula at the release's source archive (`scripts/update-homebrew-formula.sh`). The `Release` workflow signs in as a GitHub App installed only on the tap, so the token reaches nothing else and the pull request runs the tap's CI. Found internally from backlog item 577.
+  - The README's Installation section adds Homebrew: `brew install cdf-eagles/tap/findbig` installs the command and its manual page on macOS.
 - 2026-11-14
   - This changelog starts, filled in from the repository's history. Found internally from backlog item 566.
   - A search path that does not exist or is not a directory now stops with a usage error instead of a traceback from an empty result list. Found internally from backlog item 567.
