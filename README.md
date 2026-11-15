@@ -14,13 +14,13 @@ It has been tested on macOS and FreeBSD, and it should work on other UNIX and Li
 
 ## Installation
 
-Each [release](https://github.com/cdf-eagles/py-findbig/releases) from v0.5.0 on publishes packages that install the command as `findbig`, with its manual page (`man findbig`), and depend on the distribution's `python3`. The commands below use v0.5.0's file names; download the files from the release first.
+Each [release](https://github.com/cdf-eagles/py-findbig/releases) from v0.5.0 on publishes packages that install the command as `findbig`, with its manual page (`man findbig`), and depend on the distribution's `python3`. The commands below use v0.6.0's file names; download the files from the release first.
 
-* Debian and Ubuntu: `sudo apt install ./findbig_0.5.0_all.deb`
-* Red Hat Enterprise Linux (RHEL), Rocky Linux, AlmaLinux, and Fedora: `sudo dnf install ./findbig-0.5.0-1.noarch.rpm`
-* Alpine Linux: the `.apk` is signed, so install its public key first: `sudo cp py-findbig.rsa.pub /etc/apk/keys/`, then `sudo apk add ./findbig_0.5.0_noarch.apk`
+* Debian and Ubuntu: `sudo apt install ./findbig_0.6.0_all.deb`
+* Red Hat Enterprise Linux (RHEL), Rocky Linux, AlmaLinux, and Fedora: `sudo dnf install ./findbig-0.6.0-1.noarch.rpm`
+* Alpine Linux: the `.apk` is signed, so install its public key first: `sudo cp py-findbig.rsa.pub /etc/apk/keys/`, then `sudo apk add ./findbig_0.6.0_noarch.apk`
 * macOS with [Homebrew](https://brew.sh): `brew install cdf-eagles/tap/findbig` installs the command and its manual page from the account's tap ([homebrew-tap](https://github.com/cdf-eagles/homebrew-tap)), with Homebrew's Python, and `brew upgrade findbig` takes each new release; no download is needed.
-* FreeBSD 15: `sudo pkg install python3`, then `sudo pkg add ./findbig-0.5.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
+* FreeBSD 15: `sudo pkg install python3`, then `sudo pkg add ./findbig-0.6.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
 
 `SHA256SUMS` and the build provenance attestations cover every package, as they do `findbig.py` (below).
 
@@ -69,7 +69,7 @@ options:
                    times) instead of the table. (default: False)
   --json           Write a JSON array of objects (path, size in bytes, and UTC
                    times) instead of the table. (default: False)
-  -V, --version    Show the release version (v0.5.0) and exit.
+  -V, --version    Show the release version (v0.6.0) and exit.
 
 Example: findbig.py -n 10 /tmp
 ```
