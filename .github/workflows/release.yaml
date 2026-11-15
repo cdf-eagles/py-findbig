@@ -112,9 +112,20 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+  packages:
+    name: Packages
+    needs: verify
+    if: needs.verify.outputs.kind == 'rc'
+    uses: ./.github/workflows/packages.yaml
+    with:
+      version: ${{ needs.verify.outputs.version }}
+      signed: true
+    secrets:
+      APK_SIGNING_KEY: ${{ secrets.APK_SIGNING_KEY }}
+
   publish-rc:
     name: Publish the release candidate
-    needs: [verify, build]
+    needs: [verify, build, packages]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -127,11 +138,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download
+      - name: Download the script and the packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
-          name: dist
           path: dist/
+          merge-multiple: true
+
+      - name: Add the .apk signing public key
+        run: |
+          set -eu
+          cp packaging/alpine/py-findbig.rsa.pub dist/
+          ls -l dist
 
       - name: Write checksums
         working-directory: dist

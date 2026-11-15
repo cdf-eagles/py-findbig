@@ -1,0 +1,152 @@
+---
+name: Packages
+
+# yamllint disable-line rule:truthy
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Package version (X.Y.Z); empty reads __version__ from findbig.py
+        type: string
+        default: ''
+      signed:
+        description: Sign the .apk with APK_SIGNING_KEY instead of a throwaway key
+        type: boolean
+        default: false
+    secrets:
+      APK_SIGNING_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  NFPM_VERSION: 2.49.0
+  NFPM_SHA256: 2afaa5ffb5e3493402e31e7c67a5a1fb42133e3f66fc315ca0051934125561c7
+  FREEBSD_RELEASE: '15.1'
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Choose the version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-$(python3 findbig.py --version | sed -n 's/^findbig\.py v//p')}"
+          test -n "${version}"
+          echo "VERSION=${version}" >> "${GITHUB_ENV}"
+
+      - name: Install nfpm
+        run: |
+          set -euo pipefail
+          tarball="nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          curl --proto "=https" --tlsv1.2 -sSfL -o "${RUNNER_TEMP}/${tarball}" \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/${tarball}"
+          echo "${NFPM_SHA256}  ${RUNNER_TEMP}/${tarball}" | sha256sum -c -
+          mkdir -p "${RUNNER_TEMP}/bin"
+          tar -xzf "${RUNNER_TEMP}/${tarball}" -C "${RUNNER_TEMP}/bin" nfpm
+          "${RUNNER_TEMP}/bin/nfpm" --version
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+
+      # A release signs with APK_SIGNING_KEY, which must match the committed
+      # public key; every other run signs with a key made for the run.
+      - name: Write the .apk signing key
+        env:
+          SIGNED: ${{ inputs.signed }}
+          APK_SIGNING_KEY: ${{ secrets.APK_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p build
+          committed=packaging/alpine/py-findbig.rsa.pub
+          openssl pkey -pubin -in "${committed}" -noout -text | head -n 1 | grep -qx 'Public-Key: (4096 bit)'
+          if [ "${SIGNED}" = true ]; then
+            if [ -z "${APK_SIGNING_KEY}" ]; then
+              echo "::error::APK_SIGNING_KEY is not set"; exit 1
+            fi
+            printf '%s\n' "${APK_SIGNING_KEY}" > build/apk-signing.rsa
+            ours=$(openssl pkey -in build/apk-signing.rsa -pubout -outform DER | sha256sum)
+            theirs=$(openssl pkey -pubin -in "${committed}" -outform DER | sha256sum)
+            if [ "${ours}" != "${theirs}" ]; then
+              echo "::error::APK_SIGNING_KEY does not match ${committed}"; exit 1
+            fi
+            cp "${committed}" build/apk-signing.rsa.pub
+          else
+            openssl genrsa -out build/apk-signing.rsa 2048 2>/dev/null
+            openssl pkey -in build/apk-signing.rsa -pubout -out build/apk-signing.rsa.pub
+          fi
+
+      - name: Build the packages
+        run: sh packaging/build-linux-packages.sh "${VERSION}" findbig.py dist
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f build/apk-signing.rsa
+
+      - name: Install, run, and remove each package
+        run: sh packaging/test-linux-packages.sh "${VERSION}" dist build/apk-signing.rsa.pub
+
+      - name: Upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: packages-linux
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.apk
+          if-no-files-found: error
+
+  freebsd:
+    name: FreeBSD
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Choose the version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-$(python3 findbig.py --version | sed -n 's/^findbig\.py v//p')}"
+          test -n "${version}"
+          echo "VERSION=${version}" >> "${GITHUB_ENV}"
+
+      # pkg add takes dependencies only from the package's own directory, so
+      # python3 is installed from the FreeBSD repository first.
+      - name: Lint the manual page, then build, install, run, and remove the package
+        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b  # v1.6.0
+        with:
+          release: ${{ env.FREEBSD_RELEASE }}
+          usesh: true
+          envs: VERSION
+          run: |
+            set -eu
+            freebsd-version
+            mandoc -Tlint -Wwarning docs/findbig.1
+            sh packaging/freebsd/build-pkg.sh "${VERSION}" findbig.py pkg-out
+            pkg info -F pkg-out/findbig-*.pkg
+            pkg install -y python3
+            pkg add pkg-out/findbig-*.pkg
+            sh packaging/test/check-installed.sh "${VERSION}" /usr/local/share/man/man1/findbig.1.gz
+            pkg delete -y findbig
+            if command -v findbig; then echo "findbig is still installed" >&2; exit 1; fi
+
+      - name: Upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: packages-freebsd
+          path: pkg-out/*.pkg
+          if-no-files-found: error

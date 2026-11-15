@@ -1,0 +1,20 @@
+name: "findbig"
+origin: "sysutils/findbig"
+version: "%%VERSION%%"
+comment: "List the largest files and directories under a directory"
+maintainer: "noreply@github.com"
+www: "https://github.com/cdf-eagles/py-findbig"
+abi: "FreeBSD:15:*"
+arch: "freebsd:15:*"
+prefix: "/usr/local"
+licenselogic: "single"
+licenses: ["BSD3CLAUSE"]
+categories: ["sysutils"]
+deps: {
+  python3: { origin: "lang/python3" }
+}
+desc: <<EOD
+List the largest files and directories under a directory, largest first,
+as a table, as comma-separated values (CSV), or as JavaScript Object
+Notation (JSON). A Python implementation of Jason Fesler's Perl findbig.
+EOD

@@ -282,8 +282,8 @@ def positive_int(text):
     return value
 
 
-def parse_args(argv=None):
-    """Return the parsed command line arguments"""
+def build_parser():
+    """Return the command line parser"""
     parser = argparse.ArgumentParser(
         description="This script recursively finds the largest "
         "files/directories in the current working directory (default) or "
@@ -330,7 +330,12 @@ def parse_args(argv=None):
         version=f"%(prog)s v{__version__}",
         help=f"Show the release version (v{__version__}) and exit.",
     )
-    return parser.parse_args(argv)
+    return parser
+
+
+def parse_args(argv=None):
+    """Return the parsed command line arguments"""
+    return build_parser().parse_args(argv)
 
 
 def main(argv=None):

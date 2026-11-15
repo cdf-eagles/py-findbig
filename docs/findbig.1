@@ -1,0 +1,101 @@
+.Dd November 14, 2026
+.Dt FINDBIG 1
+.Os
+.Sh NAME
+.Nm findbig
+.Nd list the largest files and directories under a directory
+.Sh SYNOPSIS
+.Nm
+.Op Fl n Ar lines
+.Op Fl -csv | Fl -json
+.Op Ar search_path
+.Nm
+.Fl h
+.Nm
+.Fl V
+.Sh DESCRIPTION
+The
+.Nm
+utility walks
+.Ar search_path ,
+or the current directory when none is given, and lists its largest files and directories, largest first.
+Of two entries the same size, a directory is listed before what is in it.
+.Pp
+A directory's size is the total of the files below it; the size the file system reports for the directory itself is not counted, so an empty directory has a size of 0.
+Sizes are apparent sizes, the bytes in each file, not the disk blocks
+.Xr du 1
+counts, and a hard-linked file counts once for each of its names.
+Symbolic links are listed but not followed, and count as 0 bytes; the search path itself may be a symbolic link to a directory.
+A file or directory that vanishes during the walk, or a directory that cannot be read, counts as 0 bytes.
+.Pp
+The options are as follows:
+.Bl -tag -width "-n, --num lines"
+.It Fl n Ar lines , Fl -num Ar lines
+List at most
+.Ar lines
+entries, a whole number greater than 0.
+The default is the terminal's height less 5.
+.It Fl -csv
+Write comma-separated values (CSV) instead of the table.
+.It Fl -json
+Write one JavaScript Object Notation (JSON) array instead of the table.
+It cannot be combined with
+.Fl -csv .
+.It Fl h , Fl -help
+Print the usage and exit.
+.It Fl V , Fl -version
+Print the release version and exit.
+.El
+.Sh OUTPUT
+By default the output is a table sized to the terminal, with the path cut to fit, the time since the entry was created, the time since it was modified, and the size in bytes, kilobytes (K), megabytes (M), gigabytes (G), or terabytes (T) of 1024 each.
+The creation column, labelled
+.Ql Created ,
+is read from the birth time on systems that record one, such as
+.Fx
+and macOS; elsewhere, such as on Linux, it is labelled
+.Ql Changed
+and is read from the inode change time.
+Ages are read from each entry itself, and an age that cannot be read shows as
+.Ql - .
+.Pp
+With
+.Fl -csv ,
+the output is a header row, then one row per entry with the full path, the size in whole bytes, and the creation (or change) and modification times as Coordinated Universal Time (UTC) timestamps in ISO 8601 form.
+The columns are named
+.Ql path ,
+.Ql size_bytes ,
+.Ql created
+or
+.Ql changed ,
+and
+.Ql modified ;
+a time that cannot be read or is not recorded is empty.
+.Pp
+With
+.Fl -json ,
+the output is one array of objects with the same fields and names as the CSV columns.
+The size is a whole number of bytes, and a time that cannot be read or is not recorded is
+.Ql null .
+.Sh EXIT STATUS
+.Ex -std
+A usage error, such as a search path that is not a directory, exits with status 2.
+.Sh EXAMPLES
+List the ten largest entries under
+.Pa /tmp :
+.Pp
+.Dl $ findbig -n 10 /tmp
+.Pp
+List every entry over 40,000,000 bytes with
+.Xr jq 1 :
+.Pp
+.Dl $ findbig --json | jq -r '.[] | select(.size_bytes > 40000000) | .path'
+.Sh SEE ALSO
+.Xr du 1 ,
+.Xr find 1
+.Sh HISTORY
+.Nm
+is a Python implementation of Jason Fesler's Perl
+.Nm
+script.
+The project is at
+.Lk https://github.com/cdf-eagles/py-findbig .
