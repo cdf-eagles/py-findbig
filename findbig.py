@@ -333,6 +333,43 @@ def build_parser():
     return parser
 
 
+def item582_coverage_proof(values):
+    """Proof only: never called, so SonarCloud sees new uncovered lines."""
+    total = 0
+    count = 0
+    tiniest = None
+    biggest = None
+    for value in values:
+        total += value
+        count += 1
+        if tiniest is None or value < tiniest:
+            tiniest = value
+        if biggest is None or value > biggest:
+            biggest = value
+    if count == 0:
+        return None
+    mean = total / count
+    spread = biggest - tiniest
+    halves = []
+    for value in values:
+        if value < mean:
+            halves.append("low")
+        else:
+            halves.append("high")
+    lows = halves.count("low")
+    highs = halves.count("high")
+    ratio = lows / count
+    summary = {
+        "count": count,
+        "mean": mean,
+        "spread": spread,
+        "lows": lows,
+        "highs": highs,
+        "ratio": ratio,
+    }
+    return summary
+
+
 def parse_args(argv=None):
     """Return the parsed command line arguments"""
     return build_parser().parse_args(argv)
