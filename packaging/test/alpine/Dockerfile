@@ -1,4 +1,4 @@
-FROM alpine:3.24.2
+FROM alpine:3.24.4
 ARG VERSION
 ARG PKGDIR=dist
 ARG APK_PUBKEY
