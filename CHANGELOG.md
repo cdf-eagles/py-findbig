@@ -20,7 +20,7 @@
   - A `--json` option, off by default and not allowed with `--csv`, writes one JavaScript Object Notation (JSON) array of objects instead of the table, with the CSV's fields and names (`path`, `size_bytes`, `created` or `changed`, and `modified`) and `null` for a time that cannot be read or is not recorded. From backlog item 575.
   - `__version__` is `0.5.0` for the next minor release, and a unit test checks that the README's help block matches `--help` on Python 3.13 and later.
   - Each release publishes packages that install the command as `findbig` with a manual page, `findbig.1`, and depend on `python3`: a `.deb`, an `.rpm`, and a signed `.apk` built with nFPM, and a FreeBSD 15 package, all covered by `SHA256SUMS` and the attestations. From backlog items 576 and 578.
-  - A `Packages` CI job builds every package and installs, runs, and removes it in a Debian, AlmaLinux, or Alpine Linux container or a FreeBSD virtual machine; a unit test checks the manual page against the options, and Dependabot raises the test images.
+  - A `Packages` CI job builds every package and installs, runs, and removes it in a Debian, AlmaLinux, or Alpine Linux container (running it as the unprivileged user `nobody`) or a FreeBSD virtual machine; a unit test checks the manual page against the options, and Dependabot raises the test images.
 
 - 2026-11-12
   - Removed the SonarCloud analysis workflow, which was disabled in GitHub Actions and had never run; SonarCloud's Automatic Analysis already scans every push and pull request. Found internally from backlog item 353.

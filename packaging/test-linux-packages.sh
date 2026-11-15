@@ -1,8 +1,9 @@
 #!/bin/sh
 #
-# Install each Linux package in a container of its distribution, run the
-# installed command, check its manual page, and remove the package. Each
-# test is a docker build that fails when a step fails.
+# Install each Linux package in a container of its distribution, remove
+# and reinstall it, then run the installed command and check its manual
+# page as the unprivileged user nobody. Each test is a docker build that
+# fails when a step fails.
 #
 # Usage: test-linux-packages.sh <version> <package-dir> <apk-public-key>
 #
