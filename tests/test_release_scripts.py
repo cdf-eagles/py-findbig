@@ -11,6 +11,7 @@ import findbig
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NEXT_VERSION = os.path.join(ROOT, "scripts", "next-version.sh")
 CHECK_VERSION = os.path.join(ROOT, "scripts", "check-release-version.sh")
+UPDATE_FORMULA = os.path.join(ROOT, "scripts", "update-homebrew-formula.sh")
 
 # A git that ignores the user's own configuration (signing, hooks, editor).
 GIT_ENV = dict(
@@ -169,6 +170,124 @@ class TestCheckReleaseVersion(unittest.TestCase):
         path = os.path.join(ROOT, "findbig.py")
         code, out = self.check(f"v{findbig.__version__}", path)
         self.assertEqual(code, 0, out)
+
+
+OLD_URL = (
+    "https://github.com/cdf-eagles/py-findbig/archive/"
+    "refs/tags/v0.5.0.tar.gz"
+)
+
+# The tap's Formula/findbig.rb as published for v0.5.0.
+FORMULA = f"""class Findbig < Formula
+  include Language::Python::Shebang
+
+  desc "List the largest files and directories under a directory"
+  homepage "https://github.com/cdf-eagles/py-findbig"
+  url "{OLD_URL}"
+  sha256 "bb2fe394fafdbd31979cd2211bcfbcf93b517c86267a60be8f244931f3576483"
+  license "BSD-3-Clause"
+
+  depends_on "python@3.15"
+
+  def install
+    rewrite_shebang detected_python_shebang, "findbig.py"
+    bin.install "findbig.py" => "findbig"
+    man1.install "docs/findbig.1"
+  end
+end
+"""
+
+NEW_URL = (
+    "https://github.com/cdf-eagles/py-findbig/archive/"
+    "refs/tags/v0.6.0.tar.gz"
+)
+NEW_SUM = "0123456789abcdef" * 4
+
+
+class TestUpdateHomebrewFormula(unittest.TestCase):
+    """scripts/update-homebrew-formula.sh rewrites the tap's formula."""
+
+    def setUp(self):
+        directory = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, directory)
+        self.formula = os.path.join(directory, "findbig.rb")
+        self.write(FORMULA)
+
+    def write(self, text):
+        """Write text to the test formula."""
+        with open(self.formula, "w", encoding="utf-8") as handle:
+            handle.write(text)
+
+    def read(self):
+        """Return the test formula's text."""
+        with open(self.formula, encoding="utf-8") as handle:
+            return handle.read()
+
+    def update(self, *args):
+        """Run the script; return the exit code and its combined output."""
+        code, out, err = run(["sh", UPDATE_FORMULA, *args])
+        return code, out + err
+
+    def test_rewrite_replaces_only_url_and_sha256(self):
+        """The url and sha256 lines change and every other line stays."""
+        code, out = self.update("rewrite", self.formula, NEW_URL, NEW_SUM)
+        self.assertEqual(code, 0, out)
+        want = FORMULA.replace(
+            "refs/tags/v0.5.0.tar.gz", "refs/tags/v0.6.0.tar.gz"
+        ).replace(
+            "bb2fe394fafdbd31979cd2211bcfbcf93b517c86267a60be8f244931f3576483",
+            NEW_SUM,
+        )
+        self.assertEqual(self.read(), want)
+
+    def test_rewrite_refuses_a_bad_checksum(self):
+        """A checksum that is not 64 lowercase hex digits is a usage error."""
+        for value in (NEW_SUM.upper(), NEW_SUM[:63], NEW_SUM[:63] + "g", ""):
+            code, out = self.update("rewrite", self.formula, NEW_URL, value)
+            self.assertEqual(code, 2, out)
+            self.assertIn("not a SHA-256 checksum", out)
+            self.assertEqual(self.read(), FORMULA)
+
+    def test_rewrite_refuses_an_unsafe_url(self):
+        """A URL that is not https, or would break the sed, is refused."""
+        for value in (
+            "http://example.invalid/a.tar.gz",
+            "https://example.invalid/a|b.tar.gz",
+            "https://example.invalid/a&b.tar.gz",
+        ):
+            code, out = self.update("rewrite", self.formula, value, NEW_SUM)
+            self.assertEqual(code, 2, out)
+            self.assertEqual(self.read(), FORMULA)
+
+    def test_rewrite_needs_exactly_one_url_and_sha256_line(self):
+        """A formula with a missing or repeated line is refused unchanged."""
+        url_line = f'  url "{OLD_URL}"\n'
+        for text in (FORMULA.replace(url_line, ""), FORMULA + url_line):
+            self.write(text)
+            code, out = self.update("rewrite", self.formula, NEW_URL, NEW_SUM)
+            self.assertEqual(code, 2, out)
+            self.assertIn("expected one url line", out)
+            self.assertEqual(self.read(), text)
+
+    def test_usage_errors(self):
+        """Wrong commands and argument counts give exit status 2."""
+        for args in (
+            (),
+            ("bump",),
+            ("rewrite", self.formula),
+            ("pr",),
+            ("pr", "v1.2.3", "extra"),
+        ):
+            code, out = self.update(*args)
+            self.assertEqual(code, 2, out)
+            self.assertIn("usage:", out)
+
+    def test_pr_refuses_tags_other_than_a_final_release(self):
+        """pr takes only vX.Y.Z, so a release candidate never reaches it."""
+        for tag in ("v1.2.3-rc.1", "1.2.3", "v1.2", "latest"):
+            code, out = self.update("pr", tag)
+            self.assertEqual(code, 2, out)
+            self.assertIn(f"unsupported tag {tag}", out)
 
 
 if __name__ == "__main__":

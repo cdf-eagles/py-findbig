@@ -32,6 +32,7 @@ Dependabot opens weekly pull requests for the Python tools, the hooks, the test 
   * If `__version__` in `findbig.py` differs from the proposal, a `build/` pull request raises it first, with its changelog lines.
   * Tag the proposal's release candidate with the signed `git tag -s vX.Y.Z-rc.N` command it prints, on that `main` commit, and push the tag. The Release workflow refuses a tag that is not annotated, not verified-signed, not on `main`, or does not match `__version__` (`scripts/check-release-version.sh`).
   * After checking the pre-release's `findbig.py`, push the signed `vX.Y.Z` tag on the same commit; the workflow republishes the release candidate's own files.
+* A final release also opens a pull request on the Homebrew tap (`scripts/update-homebrew-formula.sh`), through a GitHub App installed only on `homebrew-tap` with Contents and Pull requests read and write. Its client ID is the `HOMEBREW_TAP_APP_CLIENT_ID` repository variable and its private key the `HOMEBREW_TAP_APP_PRIVATE_KEY` repository secret. Merge that pull request once the tap's CI passes.
 * The release scripts are POSIX `sh`, shellcheck-clean, and run on macOS and Linux; their tests are in `tests/test_release_scripts.py`.
 
 ## Packages
