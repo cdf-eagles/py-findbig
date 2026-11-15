@@ -8,7 +8,7 @@
 
 # Python Implementation of 'findbig'
 
-This is a Python 3 implementation of [Jason Fesler's](https://github.com/jfesler) Perl 5 'findbig' script. It lists the largest files and directories under the current directory, or a directory you name, largest first, as a table or, with `--csv`, as comma-separated values.
+This is a Python 3 implementation of [Jason Fesler's](https://github.com/jfesler) Perl 5 'findbig' script. It lists the largest files and directories under the current directory, or a directory you name, largest first, as a table or, with `--csv` or `--json`, as comma-separated values or JavaScript Object Notation (JSON).
 
 It has been tested on macOS and FreeBSD, and it should work on other UNIX and Linux systems with Python 3 installed. It needs only the Python standard library.
 
@@ -33,6 +33,7 @@ Or download `findbig.py` and `SHA256SUMS` from a [release](https://github.com/cd
 * The second column is the time since the entry was created, labelled `Created`, on systems that record a birth time, such as macOS and FreeBSD; a file system that records none shows `-`. Elsewhere, such as on Linux, it is the time since the entry's inode last changed, labelled `Changed`.
 * Ages are read from each entry itself, so a symbolic link shows its own ages, not its target's.
 * With `--csv`, which is off by default, the output is comma-separated values (CSV) instead of the table, for a spreadsheet or another tool: a header row, then one row per entry with the full path (never cut to the terminal's width), the size in whole bytes, and the creation (or change) and modification times as Coordinated Universal Time (UTC) timestamps in ISO 8601 form. The third column is named `created` or `changed` by the same rule as the table's second column, and a time that cannot be read or is not recorded is empty. A path holding a comma, a quote, or a line break is quoted.
+* With `--json`, which is off by default and cannot be combined with `--csv`, the output is one JSON array of objects instead of the table, for `jq` or another tool: each object has the same fields as the CSV columns, with the same names (`path`, `size_bytes`, `created` or `changed`, and `modified`). The size is a whole number of bytes, and a time that cannot be read or is not recorded is `null`.
 
 ## Example Usage
 
@@ -42,7 +43,7 @@ The default number of lines is the terminal's height less 5: a standard 80x24 te
 
 ```
 $ findbig.py -h
-usage: findbig.py [-h] [-n LINES] [--csv] [-V] [search_path]
+usage: findbig.py [-h] [-n LINES] [--csv | --json] [-V] [search_path]
 
 This script recursively finds the largest files/directories in the current
 working directory (default) or the specified directory.
@@ -56,7 +57,9 @@ options:
   -n, --num LINES  The number of lines to display. (default: 19)
   --csv            Write comma-separated values (path, size in bytes, and UTC
                    times) instead of the table. (default: False)
-  -V, --version    Show the release version (v0.4.0) and exit.
+  --json           Write a JSON array of objects (path, size in bytes, and UTC
+                   times) instead of the table. (default: False)
+  -V, --version    Show the release version (v0.5.0) and exit.
 
 Example: findbig.py -n 10 /tmp
 ```
@@ -129,6 +132,47 @@ path,size_bytes,changed,modified
 ./a/filea,10485760,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
 ./c,10485760,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
 "./c/file, with a comma",10485760,2026-11-14T22:23:38+00:00,2026-11-14T22:23:38+00:00
+```
+
+### JSON output
+
+This example ran on Linux, where the creation field is `changed`, in the tree above.
+
+```
+$ findbig.py --json -n 3
+[
+  {
+    "path": "./",
+    "size_bytes": 167772160,
+    "changed": "2026-11-15T00:53:52+00:00",
+    "modified": "2026-11-15T00:53:52+00:00"
+  },
+  {
+    "path": "./a",
+    "size_bytes": 98566144,
+    "changed": "2026-11-15T00:53:52+00:00",
+    "modified": "2026-11-15T00:53:52+00:00"
+  },
+  {
+    "path": "./a/1",
+    "size_bytes": 88080384,
+    "changed": "2026-11-15T00:53:52+00:00",
+    "modified": "2026-11-15T00:53:52+00:00"
+  }
+]
+```
+
+`jq` reads the array directly, for example to list every entry over 40,000,000 bytes:
+
+```
+$ findbig.py --json | jq -r '.[] | select(.size_bytes > 40000000) | "\(.size_bytes)\t\(.path)"'
+167772160	./
+98566144	./a
+88080384	./a/1
+58720256	./b
+54525952	./a/1/file1
+48234496	./b/2
+45088768	./b/2/file2
 ```
 
 ## Development and CI

@@ -4,8 +4,11 @@ import argparse
 import contextlib
 import csv
 import io
+import json
 import os
+import re
 import shutil
+import sys
 import tempfile
 import time
 import types
@@ -403,6 +406,143 @@ class TestCsvOutput(unittest.TestCase):
             findbig.os, "lstat", side_effect=FileNotFoundError
         ):
             self.assertEqual(findbig.times("x", "st_ctime"), ("", ""))
+
+
+class TestJsonOutput(unittest.TestCase):
+    """The --json option."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.sub = os.path.join(self.tmp, "sub")
+        os.makedirs(self.sub)
+        self.big = os.path.join(self.sub, "big.bin")
+        write_file(self.big, 2048)
+        write_file(os.path.join(self.tmp, "small.bin"), 100)
+
+    def json_records(self, *args):
+        """Run main() with --json and args; return the parsed records."""
+        code, out, err = run_main(["--json", *args])
+        self.assertEqual((code, err), (0, ""))
+        return json.loads(out)
+
+    def test_off_by_default(self):
+        """Without --json the option is off and the table is printed."""
+        self.assertFalse(findbig.parse_args([self.tmp]).json_output)
+        self.assertTrue(findbig.parse_args(["--json", self.tmp]).json_output)
+        code, out, _ = run_main([self.tmp])
+        self.assertEqual(code, 0)
+        self.assertTrue(out.splitlines()[0].strip().startswith("Directory"))
+
+    def test_records_read_back_to_the_walk(self):
+        """Paths and whole-byte sizes match the walk, largest first."""
+        expected = findbig.largest(findbig.walk_sizes(self.tmp), 10)
+        records = self.json_records("-n", "10", self.tmp)
+        self.assertIsInstance(records, list)
+        self.assertEqual(
+            [(record["path"], record["size_bytes"]) for record in records],
+            expected,
+        )
+        for record in records:
+            self.assertIsInstance(record["size_bytes"], int)
+            self.assertNotIsInstance(record["size_bytes"], bool)
+
+    def test_fields_match_the_csv_header(self):
+        """Each object has the CSV's fields, in the CSV's order."""
+        label = findbig.creation_column()[0].lower()
+        for record in self.json_records(self.tmp):
+            self.assertEqual(
+                list(record), ["path", "size_bytes", label, "modified"]
+            )
+
+    def test_lines_limit_the_records(self):
+        """-n limits the number of objects."""
+        self.assertEqual(len(self.json_records("-n", "2", self.tmp)), 2)
+
+    def test_not_allowed_with_csv(self):
+        """--json with --csv is a usage error."""
+        code, out, err = run_main(["--json", "--csv", self.tmp])
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("not allowed with argument", err)
+
+    def test_awkward_paths_survive_a_read(self):
+        """A quote, a backslash, or a line break in a path reads back."""
+        name = os.path.join(self.tmp, 'odd "name"\\\nhere')
+        write_file(name, 4096)
+        paths = [record["path"] for record in self.json_records(self.tmp)]
+        self.assertIn(name, paths)
+
+    def test_undecodable_names_read_back(self):
+        """A name holding bytes that are not UTF-8 still writes and reads."""
+        path = "bad-\udcff-name"
+        out = io.StringIO()
+        with mock.patch.object(
+            findbig, "utc_times", return_value=(None, None)
+        ):
+            findbig.write_json([(path, 1)], out)
+        self.assertEqual(json.loads(out.getvalue())[0]["path"], path)
+
+    def test_times_are_utc_timestamps(self):
+        """The modified field is the file's mtime in UTC, to the second."""
+        os.utime(self.big, (1_700_000_000.75, 1_700_000_000.75))
+        label = findbig.creation_column()[0].lower()
+        record = next(
+            record
+            for record in self.json_records(self.tmp)
+            if record["path"] == self.big
+        )
+        modified = datetime.fromisoformat(record["modified"])
+        self.assertEqual(modified.utcoffset().total_seconds(), 0)
+        self.assertEqual(
+            modified,
+            datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc),
+        )
+        self.assertIsNotNone(record[label])
+
+    def test_unrecorded_or_unreadable_times_are_null(self):
+        """A birth time of 0 or an entry lstat cannot read gives null."""
+        info = types.SimpleNamespace(st_birthtime=0, st_mtime=86400)
+        with mock.patch.object(findbig.os, "lstat", return_value=info):
+            self.assertEqual(
+                findbig.utc_times("x", "st_birthtime"),
+                (None, "1970-01-02T00:00:00+00:00"),
+            )
+        with mock.patch.object(
+            findbig.os, "lstat", side_effect=FileNotFoundError
+        ):
+            out = io.StringIO()
+            findbig.write_json([("x", 5)], out)
+        record = json.loads(out.getvalue())[0]
+        self.assertEqual(list(record.values())[2:], [None, None])
+
+
+class TestReadme(unittest.TestCase):
+    """The README's help block."""
+
+    @unittest.skipUnless(
+        sys.version_info >= (3, 13),
+        "argparse lays out options this way from Python 3.13",
+    )
+    def test_help_block_matches_help(self):
+        """The README's findbig.py -h block is the 80x24 --help output."""
+        readme = os.path.join(os.path.dirname(__file__), "..", "README.md")
+        with open(readme, encoding="utf-8") as stream:
+            text = stream.read()
+        block = re.search(r"\$ findbig\.py -h\n(.*?)```", text, re.DOTALL)
+        self.assertIsNotNone(block)
+        out = io.StringIO()
+        with mock.patch.object(
+            shutil,
+            "get_terminal_size",
+            return_value=os.terminal_size((80, 24)),
+        ), mock.patch.object(sys, "argv", ["findbig.py"]), mock.patch.dict(
+            os.environ, {"COLUMNS": "80", "LINES": "24"}
+        ), contextlib.redirect_stdout(
+            out
+        ):
+            with self.assertRaises(SystemExit):
+                findbig.parse_args(["-h"])
+        self.assertEqual(block.group(1).strip(), out.getvalue().strip())
 
 
 class TestVersion(unittest.TestCase):

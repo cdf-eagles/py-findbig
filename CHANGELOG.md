@@ -17,6 +17,8 @@
   - A `--csv` option, off by default, writes comma-separated values instead of the table: the full path, the size in whole bytes, and the creation (or change) and modification times as UTC timestamps, with a header row. From backlog item 571.
   - `-V` (`--version`) prints the release version, `v0.4.0`, which `--help` shows too; `CONTRIBUTING.md` says to raise it before each release is tagged.
   - Releases follow zpool-status-exporter's process: the branch prefix (`major/`, `feat/`, `fix/`) decides the bump, `scripts/next-version.sh` proposes the version, a signed `vX.Y.Z-rc.N` tag publishes a pre-release with `findbig.py`, `SHA256SUMS`, and a build provenance attestation, and a signed `vX.Y.Z` tag promotes it. The `Release` workflow refuses a tag that does not match `__version__` (`scripts/check-release-version.sh`), and the `Lint` job runs shellcheck over `scripts/`. From backlog item 571.
+  - A `--json` option, off by default and not allowed with `--csv`, writes one JavaScript Object Notation (JSON) array of objects instead of the table, with the CSV's fields and names (`path`, `size_bytes`, `created` or `changed`, and `modified`) and `null` for a time that cannot be read or is not recorded. From backlog item 575.
+  - `__version__` is `0.5.0` for the next minor release, and a unit test checks that the README's help block matches `--help` on Python 3.13 and later.
 
 - 2026-11-12
   - Removed the SonarCloud analysis workflow, which was disabled in GitHub Actions and had never run; SonarCloud's Automatic Analysis already scans every push and pull request. Found internally from backlog item 353.
