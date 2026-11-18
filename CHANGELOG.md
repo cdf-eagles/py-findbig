@@ -1,5 +1,8 @@
 # Changelog
 
+- 2026-11-18
+  - A Snyk job in continuous integration (CI) tests the Python tools pinned in `ci/requirements.txt`, which Snyk's repository import skips, and fails on any high or critical issue, a scan error, or a missing `SNYK_TOKEN` secret. The Snyk CLI 1.1308.4 is downloaded from its GitHub release and verified by its checksum; found internally from backlog item 572.
+  - The weekly Tool drift job calls the Tool drift workflow v1.1.1, which also checks the `SNYK_VERSION` pin against the latest Snyk CLI release.
 - 2026-11-15
   - SonarCloud analyses the repository from continuous integration (CI) instead of its automatic analysis, so the analysis now carries test coverage and the quality gate's coverage condition on new code applies. The new `SonarCloud` job runs the unit tests under coverage.py and runs pysonar, pinned in `ci/requirements.txt` with coverage.py, reading its token from Amazon Web Services (AWS) Systems Manager Parameter Store through OpenID Connect (OIDC). Found internally from backlog item 582.
   - A final release opens a pull request on the account's Homebrew tap (`homebrew-tap`) that points the `findbig` formula at the release's source archive (`scripts/update-homebrew-formula.sh`). The `Release` workflow signs in as a GitHub App installed only on the tap, so the token reaches nothing else and the pull request runs the tap's CI. Found internally from backlog item 577.
