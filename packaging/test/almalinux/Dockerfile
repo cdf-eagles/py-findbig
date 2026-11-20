@@ -1,4 +1,4 @@
-FROM almalinux:10.2
+FROM almalinux:10.3
 ARG VERSION
 ARG PKGDIR=dist
 ARG APK_PUBKEY
