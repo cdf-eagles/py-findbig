@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from operator import itemgetter
 
 # The release this script belongs to, as tagged on GitHub without the "v"
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 NAME_MIN_WIDTH = 16
 AGE_WIDTH = 12
 SIZE_WIDTH = 10
