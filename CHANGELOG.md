@@ -4,6 +4,7 @@
   - The Linux packages are served from the account's package repository, `packages` (<https://cdf-eagles.github.io/packages/>), so `apt`, `dnf`, and `apk` install `findbig` and offer each new release as an upgrade; the README's Installation section gives the setup. Found internally from backlog item 580.
   - A final release opens a pull request on `packages` that adds the release's `.deb`, `.rpm`, and `.apk`, with their SHA-256 checksums and release candidate tag, to `sources/py-findbig.txt` (`scripts/update-package-repository.sh`). The `Release` workflow signs in as a GitHub App installed only on that repository.
   - The `.rpm` is signed with the package repository's OpenPGP key (`PACKAGES_SIGNING_KEY`, public half `packaging/packages-signing.asc`), and the package tests check its signature on AlmaLinux 9, newly tested, and AlmaLinux 10.
+  - `__version__` is 0.7.0 for the v0.7.0 release, the first served from the package repository and whose final tag opens its pull request; the README's package file names and help text follow it.
 - 2026-11-18
   - A Snyk job in continuous integration (CI) tests the Python tools pinned in `ci/requirements.txt`, which Snyk's repository import skips, and fails on any high or critical issue, a scan error, or a missing `SNYK_TOKEN` secret. The Snyk CLI 1.1308.4 is downloaded from its GitHub release and verified by its checksum; found internally from backlog item 572.
   - The weekly Tool drift job calls the Tool drift workflow v1.1.1, which also checks the `SNYK_VERSION` pin against the latest Snyk CLI release.

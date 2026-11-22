@@ -31,9 +31,9 @@ From v0.7.0 on, the account's package repository, [packages](https://github.com/
   * `echo https://cdf-eagles.github.io/packages/alpine | sudo tee -a /etc/apk/repositories`
   * `sudo apk update && sudo apk add findbig`
 * macOS with [Homebrew](https://brew.sh): `brew install cdf-eagles/tap/findbig` installs the command and its manual page from the account's tap ([homebrew-tap](https://github.com/cdf-eagles/homebrew-tap)), with Homebrew's Python, and `brew upgrade findbig` takes each new release; no download is needed.
-* FreeBSD 15: download `findbig-0.6.0.pkg` from the release, then `sudo pkg install python3` and `sudo pkg add ./findbig-0.6.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
+* FreeBSD 15: download `findbig-0.7.0.pkg` from the release, then `sudo pkg install python3` and `sudo pkg add ./findbig-0.7.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
 
-The Linux packages also install from a downloaded release file, without the repository (v0.6.0's file names): `sudo apt install ./findbig_0.6.0_all.deb`, `sudo dnf install ./findbig-0.6.0-1.noarch.rpm`, or, after installing the `.apk` key as above, `sudo apk add ./findbig_0.6.0_noarch.apk`. The `.rpm` is signed with the repository's OpenPGP key from v0.7.0 on (`packaging/packages-signing.asc`).
+The Linux packages also install from a downloaded release file, without the repository (v0.7.0's file names): `sudo apt install ./findbig_0.7.0_all.deb`, `sudo dnf install ./findbig-0.7.0-1.noarch.rpm`, or, after installing the `.apk` key as above, `sudo apk add ./findbig_0.7.0_noarch.apk`. The `.rpm` is signed with the repository's OpenPGP key from v0.7.0 on (`packaging/packages-signing.asc`).
 
 `SHA256SUMS` and the build provenance attestations cover every package, as they do `findbig.py` (below).
 
@@ -82,7 +82,7 @@ options:
                    times) instead of the table. (default: False)
   --json           Write a JSON array of objects (path, size in bytes, and UTC
                    times) instead of the table. (default: False)
-  -V, --version    Show the release version (v0.6.0) and exit.
+  -V, --version    Show the release version (v0.7.0) and exit.
 
 Example: findbig.py -n 10 /tmp
 ```
