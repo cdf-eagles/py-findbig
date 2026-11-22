@@ -28,6 +28,7 @@ updates:
   - package-ecosystem: docker
     directories:
       - /packaging/test/almalinux
+      - /packaging/test/almalinux9
       - /packaging/test/alpine
       - /packaging/test/debian
     schedule:
