@@ -4,8 +4,9 @@
 #
 # Usage: build-linux-packages.sh <version> <findbig.py> <output-dir>
 #
-# Run from the repository root with nfpm on PATH and the .apk signing key,
-# an RSA private key in PEM form, at build/apk-signing.rsa.
+# Run from the repository root with nfpm on PATH, the .apk signing key, an
+# RSA private key in PEM form, at build/apk-signing.rsa, and the .rpm
+# signing key, an unencrypted OpenPGP private key, at build/rpm-signing.asc.
 
 set -eu
 
@@ -34,6 +35,11 @@ fi
 
 if [ ! -f build/apk-signing.rsa ]; then
     echo "no .apk signing key at build/apk-signing.rsa" >&2
+    exit 66
+fi
+
+if [ ! -f build/rpm-signing.asc ]; then
+    echo "no .rpm signing key at build/rpm-signing.asc" >&2
     exit 66
 fi
 

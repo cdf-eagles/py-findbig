@@ -14,13 +14,26 @@ It has been tested on macOS and FreeBSD, and it should work on other UNIX and Li
 
 ## Installation
 
-Each [release](https://github.com/cdf-eagles/py-findbig/releases) from v0.5.0 on publishes packages that install the command as `findbig`, with its manual page (`man findbig`), and depend on the distribution's `python3`. The commands below use v0.6.0's file names; download the files from the release first.
+Each [release](https://github.com/cdf-eagles/py-findbig/releases) from v0.5.0 on publishes packages that install the command as `findbig`, with its manual page (`man findbig`), and depend on the distribution's `python3`.
 
-* Debian and Ubuntu: `sudo apt install ./findbig_0.6.0_all.deb`
-* Red Hat Enterprise Linux (RHEL), Rocky Linux, AlmaLinux, and Fedora: `sudo dnf install ./findbig-0.6.0-1.noarch.rpm`
-* Alpine Linux: the `.apk` is signed, so install its public key first: `sudo cp py-findbig.rsa.pub /etc/apk/keys/`, then `sudo apk add ./findbig_0.6.0_noarch.apk`
+From v0.7.0 on, the account's package repository, [packages](https://github.com/cdf-eagles/packages) (served at <https://cdf-eagles.github.io/packages/>), serves the Linux packages, so the package manager installs them and offers each new release as an upgrade:
+
+* Debian and Ubuntu:
+  * `sudo install -d -m 0755 /etc/apt/keyrings`
+  * `sudo curl -fsSLo /etc/apt/keyrings/packages-signing.asc https://cdf-eagles.github.io/packages/packages-signing.asc`
+  * `sudo curl -fsSLo /etc/apt/sources.list.d/packages.sources https://cdf-eagles.github.io/packages/packages.sources`
+  * `sudo apt update && sudo apt install findbig`
+* Red Hat Enterprise Linux (RHEL), Rocky Linux, AlmaLinux, and Fedora:
+  * `sudo curl -fsSLo /etc/yum.repos.d/packages.repo https://cdf-eagles.github.io/packages/packages.repo`
+  * `sudo dnf install findbig`, accepting the signing key whose fingerprint is `CFB4 69E9 9EB8 7CAA 961E  BF13 9241 DF59 F784 6543`
+* Alpine Linux:
+  * `sudo wget -qO /etc/apk/keys/py-findbig.rsa.pub https://cdf-eagles.github.io/packages/py-findbig.rsa.pub`
+  * `echo https://cdf-eagles.github.io/packages/alpine | sudo tee -a /etc/apk/repositories`
+  * `sudo apk update && sudo apk add findbig`
 * macOS with [Homebrew](https://brew.sh): `brew install cdf-eagles/tap/findbig` installs the command and its manual page from the account's tap ([homebrew-tap](https://github.com/cdf-eagles/homebrew-tap)), with Homebrew's Python, and `brew upgrade findbig` takes each new release; no download is needed.
-* FreeBSD 15: `sudo pkg install python3`, then `sudo pkg add ./findbig-0.6.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
+* FreeBSD 15: download `findbig-0.6.0.pkg` from the release, then `sudo pkg install python3` and `sudo pkg add ./findbig-0.6.0.pkg`. `pkg add` takes dependencies only from the package's own directory, so `python3` comes from the FreeBSD repository first, and `pkg upgrade` does not offer new releases.
+
+The Linux packages also install from a downloaded release file, without the repository (v0.6.0's file names): `sudo apt install ./findbig_0.6.0_all.deb`, `sudo dnf install ./findbig-0.6.0-1.noarch.rpm`, or, after installing the `.apk` key as above, `sudo apk add ./findbig_0.6.0_noarch.apk`. The `.rpm` is signed with the repository's OpenPGP key from v0.7.0 on (`packaging/packages-signing.asc`).
 
 `SHA256SUMS` and the build provenance attestations cover every package, as they do `findbig.py` (below).
 
@@ -196,7 +209,7 @@ The `CI` workflow (`.github/workflows/ci.yaml`) runs on every pull request to `m
 * `Test` runs the unit tests in `tests/` with `python3 -m unittest`.
 * `Snyk` installs the Python tools pinned in `ci/requirements.txt` and tests them with the Snyk command-line interface (CLI), failing on any high or critical dependency issue, a scan error, or a missing `SNYK_TOKEN` secret. The secret is set both as an Actions secret and as a Dependabot secret, because Dependabot's pull requests cannot read Actions secrets.
 * `SonarCloud` runs the unit tests under coverage.py, then sends the analysis and the coverage report (`coverage.xml`) to SonarCloud with pysonar, configured by `sonar-project.properties`, and fails when the quality gate fails, which includes 80 percent coverage of new code. It reads its SonarCloud token from Amazon Web Services (AWS) Systems Manager Parameter Store through a role it assumes with the run's OpenID Connect (OIDC) token; the role's Amazon Resource Name (ARN) is the `AWS_SONARCLOUD_ROLE_ARN` secret. It runs on pushes to `main` and on pull requests from this repository's own branches; Dependabot and fork pull requests receive no OIDC token and skip it, and `main` is analysed when their change merges.
-* `Packages` runs the reusable `Packages` workflow (`.github/workflows/packages.yaml`). Its `Linux` job builds the `.deb`, `.rpm`, and `.apk` with nFPM (`packaging/nfpm.yaml`, `packaging/build-linux-packages.sh`), signing the `.apk` with a key made for the run, then installs, removes, and reinstalls each one in a Debian, AlmaLinux, and Alpine Linux container and runs it as the unprivileged user `nobody` (`packaging/test-linux-packages.sh`). Its `FreeBSD` job lints the manual page with `mandoc`, then builds, installs, runs, and removes the FreeBSD package in a FreeBSD virtual machine (`packaging/freebsd/build-pkg.sh`).
+* `Packages` runs the reusable `Packages` workflow (`.github/workflows/packages.yaml`). Its `Linux` job builds the `.deb`, `.rpm`, and `.apk` with nFPM (`packaging/nfpm.yaml`, `packaging/build-linux-packages.sh`), signing the `.apk` and the `.rpm` with keys made for the run, then installs, removes, and reinstalls each one in a Debian 13, AlmaLinux 9 and 10, and Alpine Linux container and runs it as the unprivileged user `nobody` (`packaging/test-linux-packages.sh`); the AlmaLinux containers first check the `.rpm`'s signature with `rpm --checksig`. Its `FreeBSD` job lints the manual page with `mandoc`, then builds, installs, runs, and removes the FreeBSD package in a FreeBSD virtual machine (`packaging/freebsd/build-pkg.sh`).
 * `Tool drift` runs weekly and opens an issue when a pinned tool has a newer release.
 
 The tests need only the Python standard library (and `git` for the release script tests): `python3 -m unittest discover -s tests -t .` runs them locally.
@@ -207,9 +220,10 @@ Work is squash merged into `main` through pull requests from `fix/`, `feat/`, `m
 
 1. `scripts/next-version.sh` proposes the next version from the branch prefixes of the pull requests merged since the last release tag (it looks them up with the GitHub CLI, `gh`): `major/` bumps the major version, `feat/` the minor, and `fix/` the patch.
 2. `__version__` in `findbig.py` must name that version, since `--version` and `--help` show it; a `build/` pull request raises it when it does not.
-3. A signed release candidate tag `vX.Y.Z-rc.N` on that `main` commit runs the `Release` workflow (`.github/workflows/release.yaml`). It checks that the tag is annotated, verified-signed, on `main`, and matches `__version__`, runs the unit tests, builds and tests the packages through the `Packages` workflow with the `.apk` signed by the `APK_SIGNING_KEY` secret (which must match `packaging/alpine/py-findbig.rsa.pub`), and publishes a pre-release holding `findbig.py`, the packages, the `.apk` public key, `SHA256SUMS`, and build provenance attestations.
+3. A signed release candidate tag `vX.Y.Z-rc.N` on that `main` commit runs the `Release` workflow (`.github/workflows/release.yaml`). It checks that the tag is annotated, verified-signed, on `main`, and matches `__version__`, runs the unit tests, builds and tests the packages through the `Packages` workflow with the `.apk` signed by the `APK_SIGNING_KEY` secret (which must match `packaging/alpine/py-findbig.rsa.pub`) and the `.rpm` by the `PACKAGES_SIGNING_KEY` secret (which must match `packaging/packages-signing.asc`), and publishes a pre-release holding `findbig.py`, the packages, the `.apk` public key, `SHA256SUMS`, and build provenance attestations.
 4. After the release candidate is proven, the same commit is tagged `vX.Y.Z`. The workflow publishes the release candidate's own files as the release, after checking them against their checksums and attestations.
 5. The workflow's `homebrew` job then opens a pull request on [homebrew-tap](https://github.com/cdf-eagles/homebrew-tap) that points `Formula/findbig.rb` at the release's source archive (`scripts/update-homebrew-formula.sh pr`). It signs in as a GitHub App installed only on the tap, whose client ID is the `HOMEBREW_TAP_APP_CLIENT_ID` repository variable and whose private key is the `HOMEBREW_TAP_APP_PRIVATE_KEY` secret, with a token limited to the tap's contents and pull requests. The tap's CI audits, installs, and tests the new formula, and the pull request is merged by hand once it passes.
+6. The workflow's `package-repository` job opens a pull request on [packages](https://github.com/cdf-eagles/packages) that adds the release's `.deb`, `.rpm`, and `.apk`, with their SHA-256 checksums and the release candidate tag their attestations name, to `sources/py-findbig.txt` (`scripts/update-package-repository.sh pr`). It signs in as a GitHub App installed only on that repository, whose client ID is the `PACKAGES_APP_CLIENT_ID` repository variable and whose private key is the `PACKAGES_APP_PRIVATE_KEY` secret. Once merged, the repository's deploy checks the files against their checksums and attestations and publishes them.
 
 `build/`, `dependabot/`, and `ignore/` pull requests do not bump the version and ship with the next release.
 

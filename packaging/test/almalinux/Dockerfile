@@ -2,9 +2,16 @@ FROM almalinux:10.3
 ARG VERSION
 ARG PKGDIR=dist
 ARG APK_PUBKEY
+ARG RPM_PUBKEY
 COPY ${PKGDIR}/ /pkgs/
+COPY ${RPM_PUBKEY} /tmp/rpm-signing.pub.asc
 COPY packaging/test/check-installed.sh /check-installed.sh
-RUN dnf install -y --setopt=tsflags= /pkgs/findbig-*.noarch.rpm \
+# rpm --checksig exits 0 for an unsigned package too, so the test matches
+# its "digests signatures OK" line.
+RUN rpm --import /tmp/rpm-signing.pub.asc \
+    && rpm --checksig /pkgs/findbig-*.noarch.rpm | tee /tmp/checksig \
+    && grep -q ': digests signatures OK$' /tmp/checksig \
+    && dnf install -y --setopt=tsflags= /pkgs/findbig-*.noarch.rpm \
     && dnf remove -y findbig \
     && ! command -v findbig \
     && dnf install -y --setopt=tsflags= /pkgs/findbig-*.noarch.rpm \

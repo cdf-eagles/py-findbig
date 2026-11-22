@@ -2,6 +2,7 @@ FROM alpine:3.24.4
 ARG VERSION
 ARG PKGDIR=dist
 ARG APK_PUBKEY
+ARG RPM_PUBKEY
 COPY ${APK_PUBKEY} /etc/apk/keys/py-findbig.rsa.pub
 COPY ${PKGDIR}/ /pkgs/
 COPY packaging/test/check-installed.sh /check-installed.sh

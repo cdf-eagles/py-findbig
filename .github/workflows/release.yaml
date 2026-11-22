@@ -122,6 +122,7 @@ jobs:
       signed: true
     secrets:
       APK_SIGNING_KEY: ${{ secrets.APK_SIGNING_KEY }}
+      PACKAGES_SIGNING_KEY: ${{ secrets.PACKAGES_SIGNING_KEY }}
 
   publish-rc:
     name: Publish the release candidate
@@ -242,3 +243,43 @@ jobs:
           GH_TOKEN: ${{ steps.tap-token.outputs.token }}
           TAG: ${{ github.ref_name }}
         run: sh scripts/update-homebrew-formula.sh pr "$TAG"
+
+  package-repository:
+    name: Open the package repository pull request
+    needs: [verify, publish-final]
+    if: needs.verify.outputs.kind == 'final'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the release checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release download "$TAG" --pattern SHA256SUMS --dir "${RUNNER_TEMP}"
+
+      # The token reaches only the package repository, with contents and pull
+      # requests write.
+      - name: Create a token for the package repository
+        id: packages-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        with:
+          client-id: ${{ vars.PACKAGES_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PACKAGES_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: packages
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open the pull request on the package repository
+        env:
+          GH_TOKEN: ${{ steps.packages-token.outputs.token }}
+          TAG: ${{ github.ref_name }}
+          RC_TAG: ${{ needs.verify.outputs.rc_tag }}
+        run: sh scripts/update-package-repository.sh pr "$TAG" "$RC_TAG" "${RUNNER_TEMP}/SHA256SUMS"

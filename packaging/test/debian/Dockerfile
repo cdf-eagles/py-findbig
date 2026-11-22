@@ -2,6 +2,7 @@ FROM debian:13
 ARG VERSION
 ARG PKGDIR=dist
 ARG APK_PUBKEY
+ARG RPM_PUBKEY
 COPY ${PKGDIR}/ /pkgs/
 COPY packaging/test/check-installed.sh /check-installed.sh
 RUN rm -f /etc/dpkg/dpkg.cfg.d/docker* /etc/dpkg/dpkg.cfg.d/excludes \

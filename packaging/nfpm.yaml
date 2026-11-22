@@ -24,6 +24,9 @@ contents:
     dst: /usr/share/doc/findbig/LICENSE
     file_info:
       mode: 0644
+rpm:
+  signature:
+    key_file: build/rpm-signing.asc
 apk:
   signature:
     key_file: build/apk-signing.rsa
