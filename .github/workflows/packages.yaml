@@ -57,7 +57,9 @@ jobs:
         run: |
           set -euo pipefail
           tarball="nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
-          curl --proto "=https" --tlsv1.2 -sSfL -o "${RUNNER_TEMP}/${tarball}" \
+          curl --proto "=https" --tlsv1.2 -sSfL \
+            --retry 8 --retry-delay 30 --retry-max-time 300 --retry-all-errors \
+            -o "${RUNNER_TEMP}/${tarball}" \
             "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/${tarball}"
           echo "${NFPM_SHA256}  ${RUNNER_TEMP}/${tarball}" | sha256sum -c -
           mkdir -p "${RUNNER_TEMP}/bin"

@@ -1,5 +1,7 @@
 # Changelog
 
+- 2026-11-23
+  - Continuous integration (CI) retries each pinned tool download (`--retry 8 --retry-delay 30 --retry-max-time 300 --retry-all-errors`) for up to about five minutes, so a passing error from GitHub's release download service, such as the 504 replies of 2026-11-08, no longer fails the job before its checks run; the SHA-256 check after each download is unchanged. Found internally from backlog item 516.
 - 2026-11-22
   - The Linux packages are served from the account's package repository, `packages` (<https://cdf-eagles.github.io/packages/>), so `apt`, `dnf`, and `apk` install `findbig` and offer each new release as an upgrade; the README's Installation section gives the setup. Found internally from backlog item 580.
   - A final release opens a pull request on `packages` that adds the release's `.deb`, `.rpm`, and `.apk`, with their SHA-256 checksums and release candidate tag, to `sources/py-findbig.txt` (`scripts/update-package-repository.sh`). The `Release` workflow signs in as a GitHub App installed only on that repository.
