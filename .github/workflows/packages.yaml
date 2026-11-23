@@ -26,6 +26,7 @@ env:
   NFPM_VERSION: 2.49.0
   NFPM_SHA256: 2afaa5ffb5e3493402e31e7c67a5a1fb42133e3f66fc315ca0051934125561c7
   FREEBSD_RELEASE: '15.1'
+  PYTHON_VERSION: "3.13.18"
 
 jobs:
   linux:
@@ -37,6 +38,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+
+      # yamllint disable-line rule:line-length
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Choose the version
         env:
@@ -149,6 +155,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+
+      # yamllint disable-line rule:line-length
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Choose the version
         env:
