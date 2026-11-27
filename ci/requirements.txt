@@ -1,5 +1,5 @@
 check-jsonschema==0.39.0
-coverage==7.17.3
+coverage==7.17.5
 pre-commit==4.7.0
 pylint==4.1.4
 pysonar==1.11.0.6012
